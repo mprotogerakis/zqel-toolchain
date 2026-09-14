@@ -91,9 +91,16 @@ def eintraege() -> list[dict]:
     """Jede Adresse, die wir oeffentlich anbieten - aus den Manifesten."""
     e: list[dict] = []
 
-    def dazu(gruppe, name, pfad, plattform, herkunft):
+    def dazu(gruppe, name, pfad, plattform, herkunft, fluechtig=False):
+        # `fluechtig`: eine inhaltsadressierte Adresse. Sie ist richtig, aber
+        # sie BEWEGT SICH, sobald sich das Eingangsmaterial bewegt - der Hash
+        # IST der Name. Solche Zeilen werden gemessen und angezeigt, aber aus
+        # dem Soll-Ist-Vergleich herausgehalten: sonst wuerde jede Aenderung
+        # im Schwesterrepositorium diese CI roeten, ohne dass etwas kaputt
+        # ist, und das schult alle darauf, sie zu ignorieren.
         e.append({"gruppe": gruppe, "name": name, "url": f"{BASIS}/{pfad}",
-                  "plattform": plattform, "herkunft": herkunft})
+                  "plattform": plattform, "herkunft": herkunft,
+                  "fluechtig": fluechtig})
 
     # 1. Gespiegelte Fremdwerkzeuge. Die .notice.txt daneben ist keine
     #    Beigabe: ohne sie geben wir fremde Binaries ohne ihren Lizenzhinweis
@@ -149,7 +156,8 @@ def eintraege() -> list[dict]:
     if roh:
         d = json.loads(roh)
         dazu("toolchain flake", f"{d['sha256'][:12]}….tar.gz",
-             f"flake/{d['sha256']}.tar.gz", "Linux, macOS", "flake/latest.json")
+             f"flake/{d['sha256']}.tar.gz", "Linux, macOS", "flake/latest.json",
+             fluechtig=True)
     dazu("toolchain flake", "latest.json", "flake/latest.json",
          "—", "published by CI")
     dazu("toolchain flake", "probe_public_toolchain.py",
@@ -170,7 +178,7 @@ def eintraege() -> list[dict]:
         d = json.loads(roh)
         dazu("zqel devShell flake", f"{d['sha256'][:12]}….tar.gz",
              f"zqel/flake/{d['sha256']}.tar.gz", "Linux, macOS",
-             "zqel/flake/latest.json")
+             "zqel/flake/latest.json", fluechtig=True)
     dazu("zqel devShell flake", "latest.json", "zqel/flake/latest.json",
          "—", "published by LoLa CI")
 
@@ -240,7 +248,7 @@ def tabelle(eintr: list[dict], stand: dict) -> str:
         g = e["gruppe"] if e["gruppe"] != vorher else ""
         vorher = e["gruppe"]
         if st == 200:
-            groesse = _groesse(gr)
+            groesse = _groesse(gr) + (" ·moves" if e.get("fluechtig") else "")
             name = f"[{e['name']}]({e['url']})"
         elif st == -1:
             groesse = "not reached"
@@ -277,6 +285,12 @@ def rumpf(eintr, stand) -> str:
         "writes `zqel/nightly/<YYYY-MM-DD>/`, which grows without a manifest",
         "and cannot be enumerated — R2 serves no listings. The rows above are",
         "the addresses that stay put.",
+        "",
+        "A size marked `·moves` belongs to a content-addressed name: the hash",
+        "**is** the address, so it changes whenever its input does. Those rows",
+        "are measured and shown but deliberately left out of the CI check —",
+        "otherwise a commit in the sibling repository would redden this one",
+        "for nothing.",
         "",
         "**`latest` is navigation, never proof identity.** The `latest.json`",
         "files and the `zqel/latest/` names move. A verdict that cites this",
@@ -329,25 +343,48 @@ def main(argv=None) -> int:
         # ABSICHTLICH nicht Text gegen Text.
         #
         # Groessen und Erreichbarkeit aendern sich rechtmaessig - ein neues
-        # Nightly, ein gefuellter Cache. Ein Byte-Vergleich machte daraus
-        # eine rote CI, die nichts Kaputtes meldet, und das schult jeden
-        # darauf, sie zu ignorieren. Geprueft wird, was drift EN kann, ohne
-        # dass es jemand merkt: die Menge der zugesagten Adressen.
-        soll = {e["url"] for e in eintr}
-        ist = set(re.findall(r"\((https://dl\.zqel\.org/[^)\s]+)\)", alt))
-        # Fehlende Zeilen stehen ohne Link da - die Adresse steht dann in der
-        # Zeile selbst nicht, also aus dem Sollbestand herausrechnen.
-        ohne_link = {e["url"] for e in eintr if stand[e["url"]][0] not in (200, -1)}
+        # Nightly, ein gefuellter Cache. Ein Byte-Vergleich machte daraus eine
+        # rote CI, die nichts Kaputtes meldet, und das schult jeden darauf,
+        # sie zu ignorieren. Geprueft wird, was driften kann, ohne dass es
+        # jemand merkt: die Menge der zugesagten Adressen.
+        #
+        # NUR IM ABSCHNITT. Der erste Entwurf durchsuchte die ganze Datei -
+        # und liess eine geloeschte Tabellenzeile durchgehen, weil dieselbe
+        # Adresse weiter oben in der Werkzeugmatrix noch einmal stand
+        # (gemessen: Zeile entfernt, Exit 0). Eine Pruefung, die ihren eigenen
+        # Gegenstand nicht eingrenzt, stimmt einem immer zu.
+        if ANFANG not in alt or ENDE not in alt:
+            print("  Der Abschnitt fehlt in der README.")
+            return 1
+        abschnitt = alt.split(ANFANG, 1)[1].split(ENDE, 1)[0]
+        ausserhalb = alt.replace(abschnitt, "")
+
+        fluechtig = {e["url"] for e in eintr if e.get("fluechtig")}
+        ohne_link = {e["url"] for e in eintr
+                     if stand[e["url"]][0] not in (200, -1)}
+        soll = {e["url"] for e in eintr} - fluechtig
+        ist = set(re.findall(r"\((https://dl\.zqel\.org/[^)\s]+)\)", abschnitt))
+
         fehlt = (soll - ohne_link) - ist
-        zuviel = ist - soll
+        zuviel = (ist - soll) - fluechtig
         for u in sorted(fehlt):
-            print(f"  fehlt in der README:   {u}")
+            print(f"  fehlt in der Tabelle:   {u}")
         for u in sorted(zuviel):
-            print(f"  steht zu viel darin:   {u}")
-        if fehlt or zuviel:
+            print(f"  steht zu viel darin:    {u}")
+
+        # Und die Gegenrichtung, die die Quell-Tarballs gefunden hat: ein
+        # Verweis anderswo in der README auf etwas, das aus keinem Pin folgt.
+        alle = {e["url"] for e in eintr}
+        fremd = {u for u in re.findall(
+            r"\((https://dl\.zqel\.org/[^)\s]+)\)", ausserhalb)
+            if u not in alle and not u.rstrip("/").endswith("dl.zqel.org")}
+        for u in sorted(fremd):
+            print(f"  verwiesen, aber aus keinem Pin abgeleitet: {u}")
+
+        if fehlt or zuviel or fremd:
             print("  -> python3 tools/write_download_table.py --schreiben")
             return 1
-        print(f"  README.md nennt alle {len(soll)} zugesagten Adressen "
+        print(f"  Die Tabelle nennt alle {len(soll)} zugesagten Adressen "
               f"({fehlend} davon derzeit nicht ausgeliefert).")
         return 0
 

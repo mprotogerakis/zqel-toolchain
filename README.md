@@ -257,10 +257,28 @@ refuses to publish if it has drifted from the pins. The other half is still
 open: zqel must vendor it and check against it, so that a verdict names the
 toolchain that produced it by more than convention.
 
-**Upstreaming.** The Darwin compatibility changes belong in Creusot's
-`nix/deps/why3find.nix`, `cvc4.nix` and `cvc5.nix`. This repository should
-shrink to aliases of the upstream outputs once a tagged Creusot release carries
-them.
+**Upstreaming — open, with an answer owed.** The Darwin compatibility changes
+belong in Creusot's `nix/deps/why3find.nix`, `cvc4.nix` and `cvc5.nix`. This
+repository should shrink to aliases of the upstream outputs once a tagged
+Creusot release carries them.
+
+Opened as [creusot-rs/creusot#2248](https://github.com/creusot-rs/creusot/issues/2248).
+Upstream's reply raised the part that actually matters: two of the three
+changes are packaging (a code signer for why3find, a missing `<cstddef>`), but
+the third is not. Turning `-DUSE_CLN=1` into `0` for cvc4 and cvc5 changes the
+**arithmetic backend of the provers that discharge our goals** — so a verdict
+produced on Darwin and one produced on Linux do not come from the same prover
+configuration.
+
+We did not know what that costs, so we are measuring it rather than arguing
+it. `packages.x86_64-linux.creusot-gmp` builds the Darwin variant **on Linux**,
+where the CLN build also works: that isolates the arithmetic backend, since
+comparing Darwin/GMP against Linux/CLN would move two things at once. The
+comparison itself lives in the LoLa repository, where the proof corpus is —
+85 of its 131 goals go to cvc4/cvc5, so the corpus carries the question.
+
+A difference in **verdict** would be a finding. A difference in **time** would
+not.
 
 ---
 
@@ -312,11 +330,11 @@ rather than in someone's terminal.
 |  | [matiec-0.1-7949c0b-win_amd64-setup.exe.sha256](https://dl.zqel.org/tools/matiec/0.1-7949c0b/matiec-0.1-7949c0b-win_amd64-setup.exe.sha256) | Windows x86_64 | 106 B |
 |  | [matiec-7949c0b.tar.gz](https://dl.zqel.org/tools/matiec/0.1-7949c0b/matiec-7949c0b.tar.gz) | source | 713 KB |
 |  | [matiec-7949c0b.tar.gz.sha256](https://dl.zqel.org/tools/matiec/0.1-7949c0b/matiec-7949c0b.tar.gz.sha256) | source | 89 B |
-| toolchain flake | [afd798890655….tar.gz](https://dl.zqel.org/flake/afd79889065580cf8c0d3d6f23c0b601964de8ff9ec8586a4570323e5eb09d7c.tar.gz) | Linux, macOS | 4 KB |
+| toolchain flake | [afd798890655….tar.gz](https://dl.zqel.org/flake/afd79889065580cf8c0d3d6f23c0b601964de8ff9ec8586a4570323e5eb09d7c.tar.gz) | Linux, macOS | 4 KB ·moves |
 |  | [latest.json](https://dl.zqel.org/flake/latest.json) | — | 551 B |
 |  | [probe_public_toolchain.py](https://dl.zqel.org/flake/probe_public_toolchain.py) | — | 7 KB |
 | nix binary cache | [nix-cache-info](https://dl.zqel.org/nix/nix-cache-info) | Linux, macOS | 21 B |
-| zqel devShell flake | [7e740fb22f12….tar.gz](https://dl.zqel.org/zqel/flake/7e740fb22f12df82849d0f502ff363899c4c36bdc8bc64d5793c1120a3fdf7c4.tar.gz) | Linux, macOS | 11 KB |
+| zqel devShell flake | [fe62a13d860c….tar.gz](https://dl.zqel.org/zqel/flake/fe62a13d860c2d80181107e9b62eac74f24c07a119d5805db6479ff9d09d0bd7.tar.gz) | Linux, macOS | 11 KB ·moves |
 |  | [latest.json](https://dl.zqel.org/zqel/flake/latest.json) | — | 566 B |
 | zqel (latest) | zqel-latest-linux-x86_64.tar.gz | Linux x86_64 | **missing (404)** |
 |  | zqel-latest-linux-x86_64.tar.gz.sha256 | Linux x86_64 | **missing (404)** |
@@ -339,6 +357,12 @@ rather than in someone's terminal.
 writes `zqel/nightly/<YYYY-MM-DD>/`, which grows without a manifest
 and cannot be enumerated — R2 serves no listings. The rows above are
 the addresses that stay put.
+
+A size marked `·moves` belongs to a content-addressed name: the hash
+**is** the address, so it changes whenever its input does. Those rows
+are measured and shown but deliberately left out of the CI check —
+otherwise a commit in the sibling repository would redden this one
+for nothing.
 
 **`latest` is navigation, never proof identity.** The `latest.json`
 files and the `zqel/latest/` names move. A verdict that cites this
