@@ -147,6 +147,11 @@ jobs:
           }
           nix --version
           echo "System: $(nix eval --impure --raw --expr 'builtins.currentSystem')"
+          # Auch das gehoert ins Log. Der erste Darwin-Lauf starb an
+          # datetime.UTC - das gibt es erst ab 3.11, und im PATH des Runners
+          # stand ein 3.10 aus /Library/Frameworks vorn, waehrend im Terminal
+          # ein 3.12 lag. Wer die Fassung nicht sieht, sucht woanders.
+          echo "Python: $(python3 -VV | head -1)  ($(command -v python3))"
 
       - name: Build and smoke-test before publication
         run: |
