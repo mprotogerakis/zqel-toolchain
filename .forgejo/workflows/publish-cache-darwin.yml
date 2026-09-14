@@ -27,6 +27,55 @@ jobs:
     # einer Maschine, die creusot-free schon gebaut hat, sind es Minuten.
     timeout-minutes: 360
     steps:
+      # MUSS VOR DEM CHECKOUT STEHEN.
+      #
+      # Die Instanz traegt ein Zertifikat aus einer eigenen CA. macOS vertraut
+      # ihr (curl antwortet mit 200), aber git aus nixpkgs bringt sein eigenes
+      # Buendel mit - und NIX_SSL_CERT_FILE zeigte dabei auf
+      # /etc/ssl/certs/ca-certificates.crt, einen LINUX-Pfad, den es auf macOS
+      # nicht gibt. Der erste Lauf starb deshalb mit
+      #   "self-signed certificate in certificate chain (19)"
+      # und danach mit "No such file or directory" - das git hatte gar kein
+      # Buendel.
+      #
+      # WOHER DAS ZERTIFIKAT KOMMT, IST DER PUNKT:
+      # Der NAME der CA wird aus dem Zertifikat des Servers abgelesen, das
+      # ZERTIFIKAT selbst aber aus dem Schluesselbund DIESER MASCHINE geholt.
+      # Die Kette zu nehmen, die der Server anbietet, waere zirkulaer - dann
+      # bestaetigte er sich selbst. So wird nur akzeptiert, was der Rechner
+      # ohnehin schon als vertrauenswuerdig fuehrt.
+      - name: Trust the instance CA the way this machine already does
+        run: |
+          set -eu
+          wirt=$(printf '%s' "$GITHUB_SERVER_URL" | sed -e 's|^https://||' -e 's|/.*||')
+          aussteller=$(openssl s_client -connect "$wirt:443" -servername "$wirt" \
+            </dev/null 2>/dev/null | openssl x509 -noout -issuer \
+            | sed -n 's/.*CN *= *\([^,/]*\).*/\1/p')
+          if [ -z "$aussteller" ]; then
+            echo "Der Aussteller von $wirt liess sich nicht ablesen."; exit 1
+          fi
+          echo "  Aussteller laut Server: $aussteller"
+
+          buendel="$(mktemp -d)/ca-bundle.pem"
+          cat /etc/ssl/cert.pem > "$buendel"
+          security find-certificate -a -c "$aussteller" -p >> "$buendel" 2>/dev/null || true
+          anzahl=$(grep -c 'BEGIN CERTIFICATE' "$buendel")
+          echo "  Buendel: $anzahl Zertifikate"
+
+          # Die Gegenprobe: taugt es fuer genau diesen Server? Ohne sie faellt
+          # der Fehler erst im Checkout auf, und dort sieht er aus wie ein
+          # Netzproblem.
+          if ! GIT_SSL_CAINFO="$buendel" git ls-remote \
+               "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Das Buendel reicht fuer $wirt nicht."
+            echo "Liegt '$aussteller' im Schluesselbund dieser Maschine?"
+            exit 1
+          fi
+          echo "  git spricht mit $wirt"
+          echo "GIT_SSL_CAINFO=$buendel" >> "$GITHUB_ENV"
+          echo "NIX_SSL_CERT_FILE=$buendel" >> "$GITHUB_ENV"
+          echo "SSL_CERT_FILE=$buendel" >> "$GITHUB_ENV"
+
       - name: Checkout without an external action
         run: |
           set -eu

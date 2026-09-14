@@ -273,3 +273,56 @@ def test_the_script_does_not_invent_a_token_format():
     anweisungen = _anweisungen(quelle, "#")
     assert "-ne 40" not in anweisungen, "wieder eine erfundene Laenge"
     assert "a-z0-9" not in anweisungen, "wieder eine erfundene Zeichenklasse"
+
+
+def test_the_darwin_job_establishes_trust_before_it_clones():
+    """Der erste Lauf starb im Checkout:
+
+        SSL certificate ... self-signed certificate in certificate chain (19)
+
+    Die Instanz traegt ein Zertifikat aus einer eigenen CA. macOS vertraut ihr,
+    git aus nixpkgs nicht - und NIX_SSL_CERT_FILE zeigte auf einen LINUX-Pfad,
+    den es auf macOS gar nicht gibt.
+    """
+    anweisungen = _anweisungen(DARWIN, "#")
+    assert "GIT_SSL_CAINFO" in anweisungen
+    assert anweisungen.index("GIT_SSL_CAINFO") < anweisungen.index("git fetch"), \
+        "das Vertrauen muss VOR dem Klonen stehen, sonst stirbt der Checkout"
+
+
+def test_the_ca_comes_from_the_machine_not_from_the_server():
+    """Der Kern. Den NAMEN der CA vom Server abzulesen ist harmlos; ihr
+    ZERTIFIKAT von dort zu nehmen waere zirkulaer - dann bestaetigte der
+    Server sich selbst. Es muss aus dem Vertrauensspeicher der Maschine
+    kommen.
+    """
+    anweisungen = _anweisungen(DARWIN, "#")
+    assert "security find-certificate" in anweisungen, \
+        "das Zertifikat kommt nicht aus dem Schluesselbund der Maschine"
+    assert "-showcerts" not in anweisungen, \
+        "die vom Server angebotene Kette darf nicht als Vertrauensanker dienen"
+
+
+def test_the_trust_step_proves_itself_before_the_checkout_needs_it():
+    """Ohne Gegenprobe faellt der Fehler erst im Checkout auf - und sieht
+    dort aus wie ein Netzproblem."""
+    anweisungen = _anweisungen(DARWIN, "#")
+    assert "git ls-remote" in anweisungen
+    assert anweisungen.index("git ls-remote") < anweisungen.index("git fetch")
+
+
+CHECK = (ROOT / ".forgejo" / "workflows" / "check.yml").read_text(encoding="utf-8")
+
+
+def test_every_branch_is_checked_not_only_main():
+    """forgejo ist ein PULL-Spiegel: der Zweig kommt an, das
+    pull_request-Ereignis nicht. Mit `push: branches: [main]` gab es deshalb
+    kein Gate VOR einem Merge - geprueft wurde erst, was schon drin war.
+
+    Gemessen am 2026-09-14: der Zweig lag im Spiegel, `status` meldete
+    "no runs found".
+    """
+    anweisungen = _anweisungen(CHECK, "#")
+    assert "branches: [main]" not in anweisungen, (
+        "dann prueft nichts einen Zweig, bevor er gemergt wird")
+    assert "push:" in anweisungen
