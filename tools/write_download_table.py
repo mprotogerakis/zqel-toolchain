@@ -37,6 +37,7 @@ import urllib.error
 import urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 BASIS = "https://dl.zqel.org"
 #: Eine inhaltsadressierte Flake-Adresse: der Hash IST der Name.
 #:
@@ -112,53 +113,26 @@ def eintraege() -> list[dict]:
                   "plattform": plattform, "herkunft": herkunft,
                   "fluechtig": fluechtig})
 
-    # 1. Gespiegelte Fremdwerkzeuge. Die .notice.txt daneben ist keine
-    #    Beigabe: ohne sie geben wir fremde Binaries ohne ihren Lizenzhinweis
-    #    weiter.
-    mp = json.loads((ROOT / "mirror-pin.json").read_text(encoding="utf-8"))
-    for werkzeug, w in sorted(mp["tools"].items()):
-        v = w["version"]
-        for name in sorted(w.get("artifacts") or {}):
-            plattform = _plattform_aus(name)
-            dazu(f"{werkzeug} {v} (mirrored)", name,
-                 f"tools/{werkzeug}/{v}/{name}", plattform, "mirror-pin.json")
-            dazu(f"{werkzeug} {v} (mirrored)", f"{name}.notice.txt",
-                 f"tools/{werkzeug}/{v}/{name}.notice.txt", "—",
-                 "mirror-pin.json")
-        if "licence_sidecar" in w:
-            s = w["licence_sidecar"]["name"]
-            dazu(f"{werkzeug} {v} (mirrored)", s, f"tools/{werkzeug}/{v}/{s}",
-                 "—", "mirror-pin.json")
+    # 1./2. Werkzeuge - gespiegelte wie selbst gebaute.
+    #
+    # Die Ableitung steht in tools/toolchain_adressen.py, weil sie auch der
+    # Lock braucht. Zwei Stellen, die dasselbe rechnen, driften - und genau
+    # das war hier schon zweimal der Fund.
+    from toolchain_adressen import alle
 
-    # 2. Unsere eigenen Windows-Bauten. Die Namen entstehen in
-    #    tools/windows/build_*.ps1 aus dem jeweiligen Pin - hier GENAUSO
-    #    abgeleitet, damit ein geaenderter Pin die Tabelle mitzieht statt sie
-    #    still falsch zu machen.
-    #    Und die QUELLE reist mit. gappa steht unter CeCILL, matiec unter
-    #    GPL-3.0 - wer ein Binary weitergibt, das er selbst gebaut hat,
-    #    schuldet den dazugehoerigen Quelltext. Diese beiden Zeilen sind
-    #    keine Bequemlichkeit, sie sind die Bedingung, unter der die .exe
-    #    daneben ueberhaupt liegen darf.
-    for pin_datei, werkzeug, endungen in (
-            ("gappa-pin.json", "gappa",
-             (".zip", ".zip.sha256", "-setup.exe", "-setup.exe.sha256")),
-            ("matiec-pin.json", "matiec",
-             (".zip", ".zip.sha256", "-setup.exe", "-setup.exe.sha256"))):
-        pin = json.loads((ROOT / pin_datei).read_text(encoding="utf-8"))
-        if werkzeug == "matiec":
-            v = f"{pin['version']}-{pin['revision'][:7]}"
-        else:
-            v = pin["version"]
-        gruppe = f"{werkzeug} {v} (our build)"
-        for endung in endungen:
-            dazu(gruppe, f"{werkzeug}-{v}-win_amd64{endung}",
-                 f"tools/{werkzeug}/{v}/{werkzeug}-{v}-win_amd64{endung}",
-                 "Windows x86_64", pin_datei)
-        for quelle in sorted(pin.get("source") or {}):
-            for suffix in ("", ".sha256"):
-                dazu(gruppe, f"{quelle}{suffix}",
-                     f"tools/{werkzeug}/{v}/{quelle}{suffix}",
-                     "source", pin_datei)
+    for name, w in alle().items():
+        art = "mirrored" if w["herkunft"] == "gespiegelt" else "our build"
+        gruppe = f"{name} {w['version']} ({art})"
+        for datei in w["namen"]:
+            if datei.endswith((".notice.txt", "LICENSE.txt")):
+                plattform = "—"
+            elif w["herkunft"] == "selbst gebaut" and "win_amd64" not in datei:
+                plattform = "source"
+            else:
+                plattform = _plattform_aus(datei)
+            dazu(gruppe, datei, f"{w['praefix']}/{datei}", plattform,
+                 "mirror-pin.json" if w["herkunft"] == "gespiegelt"
+                 else f"{name}-pin.json")
 
     # 3. Die Flake als Tarball. Der Hash IST der Name; latest.json ist
     #    Navigation und darf in keinem Verdikt stehen.

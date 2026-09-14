@@ -2,13 +2,13 @@
   "_comment": "Erzeugt von tools/write_toolchain_lock.py in mprotogerakis/zqel-toolchain. Nicht von Hand bearbeiten - die Wahrheit stehen in den Pins und in flake.nix.",
   "_hinweis_flake": "aktueller_flake_hash ist NAVIGATION. Wer ein Verdikt bindet, nennt den Hash ausdruecklich; diese Zeile bewegt sich.",
   "schema": 1,
-  "erzeugt": "2026-09-14T09:31:58.158645+00:00",
-  "quell_commit": "3b8ba9270fa96620d7e7436d7afc01d193d1c03b",
+  "erzeugt": "2026-09-14T15:50:50.157774+00:00",
+  "quell_commit": "4494eba5323cce444b5fda76158538317aab76a3",
   "cache": {
     "substituter": "https://dl.zqel.org/nix",
     "public_key": "dl.zqel.org-1:3a0HW0jbmoByRErCR1Oiixjklqib1uTQ2/yUXvBIrt4="
   },
-  "aktueller_flake_hash": "ec7e4c3c0d172b567fa3327e3cbf89645a50a6f9d1aa96e4afb9fd534b9a177c",
+  "aktueller_flake_hash": "6820409c349bb527cb9dc738ed6ac6736f496013095ae89d715e1c12b5121140",
   "werkzeuge": {
     "cbmc": {
       "version": "6.4.0",
@@ -17,7 +17,8 @@
       "herkunft": "gespiegelt",
       "dateien": [
         "https://dl.zqel.org/tools/cbmc/6.4.0/cbmc-6.4.0-win64.msi",
-        "https://dl.zqel.org/tools/cbmc/6.4.0/cbmc-6.4.0-win64.msi.notice.txt"
+        "https://dl.zqel.org/tools/cbmc/6.4.0/cbmc-6.4.0-win64.msi.notice.txt",
+        "https://dl.zqel.org/tools/cbmc/6.4.0/cbmc-6.4.0-LICENSE.txt"
       ]
     },
     "cvc5": {
@@ -37,12 +38,12 @@
       "herkunft": "gespiegelt",
       "dateien": [
         "https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-aarch64-apple-darwin.tar.gz",
-        "https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-aarch64-unknown-linux-gnu.tar.gz",
-        "https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-x86_64-apple-darwin.tar.gz",
-        "https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-x86_64-unknown-linux-gnu.tar.gz",
         "https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-aarch64-apple-darwin.tar.gz.notice.txt",
+        "https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-aarch64-unknown-linux-gnu.tar.gz",
         "https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-aarch64-unknown-linux-gnu.tar.gz.notice.txt",
+        "https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-x86_64-apple-darwin.tar.gz",
         "https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-x86_64-apple-darwin.tar.gz.notice.txt",
+        "https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-x86_64-unknown-linux-gnu.tar.gz",
         "https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-x86_64-unknown-linux-gnu.tar.gz.notice.txt"
       ]
     },
@@ -51,14 +52,29 @@
       "spdx": "CECILL-2.1 AND GPL-3.0-or-later",
       "upstream": "https://gitlab.inria.fr/gappa/gappa",
       "herkunft": "selbst gebaut",
-      "dateien": []
+      "dateien": [
+        "https://dl.zqel.org/tools/gappa/1.4.0/gappa-1.4.0-win_amd64.zip",
+        "https://dl.zqel.org/tools/gappa/1.4.0/gappa-1.4.0-win_amd64.zip.sha256",
+        "https://dl.zqel.org/tools/gappa/1.4.0/gappa-1.4.0-win_amd64-setup.exe",
+        "https://dl.zqel.org/tools/gappa/1.4.0/gappa-1.4.0-win_amd64-setup.exe.sha256",
+        "https://dl.zqel.org/tools/gappa/1.4.0/gappa-1.4.0.tar.gz",
+        "https://dl.zqel.org/tools/gappa/1.4.0/gappa-1.4.0.tar.gz.sha256"
+      ]
     },
     "matiec": {
       "version": "0.1-7949c0b",
       "spdx": "GPL-3.0-or-later AND LGPL-3.0-or-later",
       "upstream": "https://github.com/beremiz/matiec",
       "herkunft": "selbst gebaut",
-      "dateien": []
+      "dateien": [
+        "https://dl.zqel.org/tools/matiec/0.1-7949c0b/matiec-0.1-7949c0b-win_amd64.zip",
+        "https://dl.zqel.org/tools/matiec/0.1-7949c0b/matiec-0.1-7949c0b-win_amd64.zip.sha256",
+        "https://dl.zqel.org/tools/matiec/0.1-7949c0b/matiec-0.1-7949c0b-win_amd64-setup.exe",
+        "https://dl.zqel.org/tools/matiec/0.1-7949c0b/matiec-0.1-7949c0b-win_amd64-setup.exe.sha256",
+        "https://dl.zqel.org/tools/matiec/0.1-7949c0b/matiec-7949c0b.tar.gz",
+        "https://dl.zqel.org/tools/matiec/0.1-7949c0b/matiec-7949c0b.tar.gz.sha256"
+      ],
+      "revision": "7949c0bda1787de9c7cacaa4876ede49f85262dd"
     }
   }
 }
