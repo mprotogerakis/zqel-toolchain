@@ -55,13 +55,39 @@ command -v nix >/dev/null || {
 
 # Die Gegenprobe VOR der Anmeldung: erreicht diese Maschine die Instanz?
 # Ein Runner, der sich nicht anmelden kann, haengt sonst still.
+#
+# KEIN /dev/tcp. Gemessen am 2026-09-14 auf macOS 15 (Apple Silicon):
+#
+#   cat < /dev/null > /dev/tcp/host/443    funktioniert
+#   exec 3<> /dev/tcp/host/443             wird mit SIGKILL beendet (exit 137)
+#
+# und zwar in bash 5.2 aus nixpkgs GENAUSO wie in Apples bash 3.2. Die
+# erste Fassung dieses Skripts benutzte die zweite Form und meldete deshalb
+# "nicht erreichbar" fuer eine Instanz, die im Browser einwandfrei lief.
+# curl ist ohnehin das bessere Instrument: es prueft auch das TLS, und genau
+# darueber redet der Runner.
 wirt=${INSTANZ#https://}
 wirt=${wirt%%/*}
-if ! (exec 3<>"/dev/tcp/$wirt/443") 2>/dev/null; then
-  echo "$wirt:443 ist nicht erreichbar - VPN an?" >&2
+code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$INSTANZ/" || true)
+if [ -z "$code" ] || [ "$code" = "000" ]; then
+  echo "$INSTANZ ist nicht erreichbar - VPN an?" >&2
+  echo "(curl meldete '${code:-nichts}')" >&2
   exit 1
 fi
-echo "  $wirt:443 erreichbar"
+echo "  $wirt erreichbar (HTTP $code)"
+
+# Schaerfer: antwortet auch der Pfad, ueber den act_runner spricht? Eine 404
+# hiesse, die Actions-API ist auf dieser Instanz nicht aktiv - dann haengt
+# der Runner spaeter, ohne zu sagen warum.
+rpc=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 -X POST \
+  -H 'Content-Type: application/json' -d '{}' \
+  "$INSTANZ/api/actions/runner.v1.RunnerService/Register" || true)
+case "$rpc" in
+  404|000|"") echo "Der Runner-Endpunkt antwortet mit '${rpc:-nichts}'." >&2
+              echo "Sind Actions auf dieser Instanz aktiv?" >&2
+              exit 1 ;;
+  *)          echo "  Runner-Endpunkt antwortet (HTTP $rpc)" ;;
+esac
 
 mkdir -p "$ARBEIT"
 cd "$ARBEIT"

@@ -201,8 +201,35 @@ def test_the_attach_script_refuses_a_machine_that_cannot_build_darwin():
     assert ":host" in anweisungen, (
         "ohne :host liefe der Job im Container und saehe den /nix/store "
         "dieser Maschine nicht - von 'schon gebaut' bliebe nichts")
-    assert "/dev/tcp/" in anweisungen, (
+    assert "curl" in anweisungen, (
         "ohne Erreichbarkeitsprobe haengt ein Runner still, wenn die VPN weg ist")
+
+
+def test_the_reachability_probe_does_not_use_dev_tcp():
+    """Gemessen am 2026-09-14 auf macOS 15 (Apple Silicon):
+
+        cat < /dev/null > /dev/tcp/host/443    funktioniert
+        exec 3<> /dev/tcp/host/443             SIGKILL, exit 137
+
+    und zwar in bash 5.2 aus nixpkgs GENAUSO wie in Apples bash 3.2. Die
+    erste Fassung benutzte die zweite Form und meldete "nicht erreichbar"
+    fuer eine Instanz, die im Browser einwandfrei lief - ein Instrument, das
+    dem Benutzer die Schuld gibt.
+    """
+    quelle = (ROOT / "scripts" / "attach_macos_runner.sh").read_text(encoding="utf-8")
+    anweisungen = _anweisungen(quelle, "#")
+    assert "/dev/tcp/" not in anweisungen, \
+        "auf macOS wird diese Form mit SIGKILL beendet"
+
+
+def test_the_probe_also_asks_the_path_the_runner_actually_speaks():
+    """Die Wurzel kann antworten, waehrend Actions abgeschaltet sind. Dann
+    haengt der Runner spaeter, ohne zu sagen warum. 404 auf dem RPC-Pfad ist
+    der Befund; 400 heisst 'Route da, Nutzlast falsch' - gemessen."""
+    quelle = (ROOT / "scripts" / "attach_macos_runner.sh").read_text(encoding="utf-8")
+    anweisungen = _anweisungen(quelle, "#")
+    assert "runner.v1.RunnerService" in anweisungen
+    assert "404" in anweisungen, "eine 404 muss als Fehler behandelt werden"
 
 
 def test_the_attach_script_never_prints_the_token_value():
