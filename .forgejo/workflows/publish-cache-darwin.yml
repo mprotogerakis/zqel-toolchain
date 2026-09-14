@@ -1,0 +1,91 @@
+# Die Darwin-Haelfte des Binaercaches - von einem Mac, der nur kurz da ist.
+#
+# WARUM ES DIESEN EIGENEN WORKFLOW GIBT:
+# Die eine Maschine, die aarch64-darwin bauen kann, hatte bisher keine
+# R2-Zugaenge; die eine Stelle mit den Zugaengen hat keinen macOS-Runner. Ein
+# Runner, der sich auf dem Laptop kurz anmeldet, loest beides, OHNE die Regel
+# aufzuweichen: die Geheimnisse kommen weiterhin aus forgejo, landen nur fuer
+# die Dauer des Laufs auf der Maschine und sind danach weg. Ein Laptop mit
+# stehenden Zugaengen waere der schlechtere Tausch.
+#
+# NUR AUF ZURUF. Kein `push`, kein `schedule`, niemals `pull_request`:
+# - Ein Host-Runner fuehrt den Job OHNE Container aus, also mit den Rechten
+#   des Benutzers, der ihn gestartet hat.
+# - Der Runner ist nur zeitweise da; ein automatischer Ausloeser liefe ins
+#   Leere und saehe aus wie ein Ausfall.
+#
+# WIE MAN DEN RUNNER ANSCHLIESST: scripts/attach_macos_runner.sh
+name: Publish the Darwin binary cache
+
+on:
+  workflow_dispatch:
+
+jobs:
+  darwin-cache:
+    runs-on: macos-arm64
+    # Grosszuegig, weil ein KALTER Store die Beweiser erst uebersetzt. Auf
+    # einer Maschine, die creusot-free schon gebaut hat, sind es Minuten.
+    timeout-minutes: 360
+    steps:
+      - name: Checkout without an external action
+        run: |
+          set -eu
+          git init -q .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          git fetch -q --depth 1 origin "$GITHUB_SHA"
+          git checkout -q FETCH_HEAD
+          git log -1 --format="checked out: %H %s"
+
+      # Auf einem Host-Runner wird NICHTS installiert. nix gehoert der
+      # Maschine, nicht diesem Lauf. Wenn es fehlt, soll das hier stehen und
+      # nicht drei Schritte spaeter als unverstaendlicher Fehler.
+      - name: Find the machine's own nix
+        run: |
+          set -eu
+          if ! command -v nix >/dev/null; then
+            # Die Mehrbenutzer-Installation liegt nicht in jedem PATH.
+            profil=/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+            if [ -r "$profil" ]; then
+              # shellcheck disable=SC1090
+              . "$profil"
+              echo "PATH=$PATH" >> "$GITHUB_ENV"
+            fi
+          fi
+          command -v nix || {
+            echo "Auf dieser Maschine ist kein nix erreichbar."
+            echo "Der Runner laeuft als: $(id -un)"
+            echo "Genau dieses Konto muss nix sehen - nicht dein Terminal."
+            exit 1
+          }
+          nix --version
+          echo "System: $(nix eval --impure --raw --expr 'builtins.currentSystem')"
+
+      - name: Build and smoke-test before publication
+        run: nix build -L .#checks.aarch64-darwin.creusot-smoke
+
+      - name: Fill the signed binary cache
+        env:
+          NIX_SIGNING_KEY: ${{ secrets.NIX_SIGNING_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ID: ${{ secrets.R2_ID }}
+          R2_SECRET: ${{ secrets.R2_SECRET }}
+        run: |
+          set -eu
+          if [ -z "${NIX_SIGNING_KEY:-}" ]; then
+            echo "NIX_SIGNING_KEY ist nicht gesetzt - der Cache bliebe leer."
+            exit 1
+          fi
+          # Der Schluessel darf nur als Datei existieren, nur fuer uns, und
+          # nur so lange wie noetig. RUNNER_TEMP gibt es auf einem Host-Runner
+          # nicht immer - deshalb ein eigenes Verzeichnis.
+          umask 077
+          tmp=$(mktemp -d)
+          trap 'rm -rf "$tmp"' EXIT INT TERM
+          printf '%s' "$NIX_SIGNING_KEY" > "$tmp/nix-cache.key"
+          python3 tools/publish_nix_cache.py \
+            --key "$tmp/nix-cache.key" \
+            .#packages.aarch64-darwin.creusot-free
+
+      - name: Verify the cache answers as an outsider
+        run: python3 tools/verify_nix_cache.py .#packages.aarch64-darwin.creusot-free

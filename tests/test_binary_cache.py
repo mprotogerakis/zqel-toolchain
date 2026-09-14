@@ -145,3 +145,89 @@ def test_the_secret_is_never_written_where_it_survives_the_job():
     assert "rm -f" in anweisungen, "der Schluessel bliebe nach dem Lauf liegen"
     assert "echo $NIX_SIGNING_KEY" not in anweisungen
     assert "echo \"$NIX_SIGNING_KEY\"" not in anweisungen
+
+
+DARWIN = (ROOT / ".forgejo" / "workflows" / "publish-cache-darwin.yml").read_text(
+    encoding="utf-8")
+
+
+def test_the_darwin_job_runs_only_when_someone_asks():
+    """Ein HOST-Runner fuehrt Jobs ohne Container aus - mit den Rechten des
+    Kontos, das ihn gestartet hat. Und er ist nur zeitweise da: ein
+    automatischer Ausloeser liefe ins Leere und saehe aus wie ein Ausfall.
+    """
+    anweisungen = _anweisungen(DARWIN, "#")
+    assert "workflow_dispatch" in anweisungen
+    for ausloeser in ("push:", "pull_request:", "schedule:"):
+        assert ausloeser not in anweisungen, (
+            f"{ausloeser} auf einem Host-Runner-Job, der Geheimnisse sieht")
+
+
+def test_the_darwin_job_does_not_install_anything_on_someone_s_machine():
+    """nix gehoert der Maschine, nicht diesem Lauf. Ein Job, der auf einem
+    fremden Laptop installiert, ueberschreitet seinen Auftrag."""
+    anweisungen = _anweisungen(DARWIN, "#")
+    assert "ci_install_nix.sh" not in anweisungen, \
+        "der Darwin-Job wuerde nix auf der Maschine installieren"
+
+
+def test_the_darwin_job_checks_that_nix_is_visible_to_the_runner_account():
+    """`winget list` zeigte pwsh, SYSTEM sah es nie - zwei Laeufe gekostet.
+
+    Dasselbe hier: der Runner laeuft unter einem Konto, dessen PATH nicht der
+    deines Terminals sein muss. Die Mehrbenutzer-Installation liegt unter
+    /nix/var/nix/profiles/default und ist nicht ueberall eingehaengt.
+    """
+    anweisungen = _anweisungen(DARWIN, "#")
+    assert "/nix/var/nix/profiles/default" in anweisungen
+    assert "id -un" in anweisungen, \
+        "der Fehlerfall muss sagen, ALS WER der Runner laeuft"
+
+
+def test_the_signing_key_never_outlives_the_job():
+    anweisungen = _anweisungen(DARWIN, "#")
+    assert "umask 077" in anweisungen
+    assert "trap 'rm -rf" in anweisungen, \
+        "ohne trap bleibt der Schluessel liegen, wenn der Job abbricht"
+    assert "RUNNER_TEMP" not in anweisungen, (
+        "RUNNER_TEMP gibt es auf einem Host-Runner nicht verlaesslich - "
+        "der Schluessel landete dann in einem leeren Pfad")
+
+
+def test_the_attach_script_refuses_a_machine_that_cannot_build_darwin():
+    quelle = (ROOT / "scripts" / "attach_macos_runner.sh").read_text(encoding="utf-8")
+    anweisungen = _anweisungen(quelle, "#")
+    assert 'uname -m' in anweisungen and "arm64" in anweisungen
+    assert ":host" in anweisungen, (
+        "ohne :host liefe der Job im Container und saehe den /nix/store "
+        "dieser Maschine nicht - von 'schon gebaut' bliebe nichts")
+    assert "/dev/tcp/" in anweisungen, (
+        "ohne Erreichbarkeitsprobe haengt ein Runner still, wenn die VPN weg ist")
+
+
+def test_the_attach_script_never_prints_the_token_value():
+    """Nicht der NAME ist das Problem, sondern die ERWEITERUNG.
+
+    Der erste Entwurf verbot `FORGEJO_RUNNER_TOKEN` in jeder echo-Zeile und
+    schlug an der Zeile an, die sagt "FORGEJO_RUNNER_TOKEN ist nicht gesetzt".
+    Elfter Fall derselben Falle: eine Pruefung trifft eine Zeichenkette, die
+    etwas anderes bedeutet.
+    """
+    quelle = (ROOT / "scripts" / "attach_macos_runner.sh").read_text(encoding="utf-8")
+    for nr, zeile in enumerate(quelle.splitlines(), 1):
+        if zeile.lstrip().startswith("#"):
+            continue
+        if not any(b in zeile for b in ("echo", "printf")):
+            continue
+        for erweiterung in ("$FORGEJO_RUNNER_TOKEN", "${FORGEJO_RUNNER_TOKEN"):
+            assert erweiterung not in zeile, f"Zeile {nr}: {zeile.strip()}"
+
+
+def test_that_check_would_notice_a_leak():
+    """Der Nenner - ohne ihn waere der Test oben immer gruen."""
+    import re
+    verseucht = 'echo "token: $FORGEJO_RUNNER_TOKEN"'
+    assert any(e in verseucht for e in ("$FORGEJO_RUNNER_TOKEN",))
+    sauber = 'echo "FORGEJO_RUNNER_TOKEN ist nicht gesetzt." >&2'
+    assert "$FORGEJO_RUNNER_TOKEN" not in sauber
+    assert "${FORGEJO_RUNNER_TOKEN" not in sauber

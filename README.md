@@ -95,9 +95,39 @@ exist solely as Forgejo secrets, and Forgejo has no macOS runner (12 jobs on
 can produce those bytes cannot upload them, and the one place that can upload
 cannot produce them.
 
-That is a decision, not a bug to fix quietly. Either a native macOS runner
-joins Forgejo, or someone deliberately grants a Mac the credentials for a
-one-off push. Until then, macOS users build the 22 paths themselves.
+### Publishing the Darwin half from a laptop
+
+Until a dedicated Apple Silicon runner exists, a Mac can join Forgejo for the
+length of one job. That keeps the rule intact rather than bending it: the
+credentials still come from Forgejo, land on the machine only while the job
+runs, and are gone afterwards. A laptop holding standing credentials would be
+the worse trade.
+
+```sh
+FORGEJO_RUNNER_TOKEN=... scripts/attach_macos_runner.sh
+```
+
+Then trigger **Publish the Darwin binary cache** in Forgejo, and stop the
+runner with Ctrl-C.
+
+What makes this workable:
+
+- The runner only ever connects **outward** — it long-polls over HTTPS/2, the
+  server never calls back. No inbound port, no tunnel. Measured over the
+  university VPN on 2026-09-14: the runner RPC path answers `400`, not `404`,
+  so the route exists and only the payload was wrong.
+- It registers with the `:host` label, so the job runs directly on the machine
+  and uses its `/nix/store`. On a Mac that has already built `creusot-free`
+  this turns hours of compiling into minutes of copying. A container would see
+  an empty store and rebuild everything.
+- The job installs nothing. It looks for the machine's own `nix`, and if the
+  runner's account cannot see it, it says so and names the account — the
+  failure mode that cost two Windows nightlies was exactly this.
+
+What to weigh before starting it: a host runner executes jobs with the
+privileges of whoever started it, and the workflow is therefore
+`workflow_dispatch`-only. If the VPN drops mid-job the run dies; that is a
+retry, not damage, because the cache is content-addressed.
 
 ## Upstreaming
 
