@@ -10,16 +10,17 @@ The `creusot-free` output uses Creusot's official `v0.13.0` flake unchanged on
 `x86_64-linux`. On `aarch64-darwin` it retains the same source and toolchain
 pins while fixing the Nix build closure for why3find, CVC4, CVC5 and CoCoALib.
 
-Install the complete wrapper persistently:
+Until the first content-addressed release has been published, use a checkout
+for evaluation:
 
 ```sh
-nix profile add github:mprotogerakis/zqel-toolchain/v0.1.0#creusot-free
+nix profile add .#creusot-free
 ```
 
 Or use it without changing a profile:
 
 ```sh
-nix shell github:mprotogerakis/zqel-toolchain/v0.1.0#creusot-free
+nix shell .#creusot-free
 ```
 
 From a checkout:
@@ -36,8 +37,10 @@ Create the deterministic, SHA-256-named flake artifact with:
 python3 tools/pack_flake.py
 ```
 
-`main`, release tags and `latest.json` are navigation, not proof identity. A
-verdict must cite the content-addressed tarball. See
+There is deliberately no `v0.1.0` tag or remote Doctor recipe yet. `main`,
+release tags and `latest.json` are navigation, not proof identity. A verdict
+must cite the content-addressed tarball, and the Doctor recipe will be added
+only together with that published artifact and its generated lock record. See
 [`docs/MIGRATION.md`](docs/MIGRATION.md) for the staged move from the private
 repository and the pending `toolchain-lock.json` binding.
 
