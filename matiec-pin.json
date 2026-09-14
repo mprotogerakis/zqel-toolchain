@@ -1,0 +1,95 @@
+{
+  "_comment": [
+    "Das matiec, an das dieses Repository gebunden ist - per REVISION, nicht per",
+    "Version. matiec veroeffentlicht keine Releases; es gibt nur den Baum.",
+    "",
+    "WARUM GENAU DIESE REVISION:",
+    "Es ist dieselbe, die flake.nix baut und die die Konformitaets-Dockerfile und",
+    "die CI benutzen. Damit fahren Linux, macOS und Windows denselben Uebersetzer.",
+    "Wer hier eine andere Revision eintraegt, aendert ein Werkzeug, dessen Ausgabe",
+    "in die Uebersetzungsvalidierung eingeht.",
+    "",
+    "WARUM WIR ES SELBST BAUEN UND NICHT DAS VON OPENPLC NEHMEN:",
+    "OpenPLC liefert matiec fuer Windows mit - das beweist, dass es dort baut,",
+    "und war der Hinweis, es zu versuchen. Dessen Binaerdatei zu uebernehmen",
+    "hiesse aber, auf Windows einen ANDEREN Uebersetzer zu fahren als auf Linux",
+    "und macOS. Genau die Asymmetrie, die wir bei gappa (1.4.0 statt 1.8.3) und",
+    "bei z3 win_arm64 (5.1 statt 5.2) nicht eingegangen sind.",
+    "",
+    "WARUM MINGW UND NICHT MSVC:",
+    "MinGW trug auf Anhieb - autoreconf, configure und make liefen im ersten",
+    "Versuch durch. Dieselbe Toolchain wie bei gappa heisst: eine Rezeptform,",
+    "dieselben drei Laufzeit-DLLs, eine Lizenzgeschichte. MSVC braechte eine",
+    "zweite Laufzeit mit eigenen Weitergaberegeln."
+  ],
+  "upstream_project": "https://github.com/beremiz/matiec",
+  "version": "0.1",
+  "_why_version_and_revision": "matiec meldet seit Jahren `matiec version 0.1` - AC_INIT([matiec], [0.1]) in configure.ac, unveraendert ueber alle Revisionen. Die Version allein benennt ein Paket also NICHT eindeutig: zwei verschiedene Bauten lagen unter derselben Paketversion, und der Upload-Pfad haette den zweiten mit 409 als 'unveraendert' abgetan. Deshalb Version zuerst und die Revision dahinter: matiec-0.1-7949c0b-win_amd64.",
+  "revision": "7949c0bda1787de9c7cacaa4876ede49f85262dd",
+  "same_revision_as": "flake.nix packages.matiec (unstable-7949c0b)",
+  "checked_on": "2026-09-13",
+  "source": {
+    "matiec-7949c0b.tar.gz": {
+      "sha256": "e99d845747f3a53b0d052e511a8d43da3f253b5ea89fb5f355567520d183c68b",
+      "size": 730477,
+      "url": "https://github.com/beremiz/matiec/archive/7949c0bda1787de9c7cacaa4876ede49f85262dd.tar.gz",
+      "_why": "Der Archiv-Tarball der Revision. matiec hat keine Release-Tarballs, also braucht der Bau autoreconf - anders als bei gappa, wo `configure` fertig mitkam."
+    }
+  },
+  "windows_build": {
+    "toolchain": "MSYS2 / MINGW64",
+    "link": "dynamisch",
+    "_why_dynamic": "Wie bei gappa: die beiliegenden GCC-Laufzeitbibliotheken stehen unter GPL-3.0 mit Runtime Library Exception bzw. LGPL-2.1. Dynamisch plus beiliegende DLLs ist der Weg, bei dem sich die Bibliothek austauschen laesst.",
+    "_build_note": "Anders als gappa liefert matiec kein fertiges `configure` mit - `autoreconf -i` muss zuerst laufen, und dafuer braucht die Baumaschine autoconf, automake, flex und bison. Gebaut wird mit `make`, nicht mit `remake`.",
+    "runtime_dlls": {
+      "libgcc_s_seh-1.dll": {
+        "library": "GCC runtime",
+        "msys2_package": "mingw-w64-x86_64-gcc-libs",
+        "msys2_licenses": "spdx:GPL-3.0-or-later WITH GCC-exception-3.1 AND LGPL-2.1-or-later",
+        "upstream_url": "https://gcc.gnu.org",
+        "licence_files": [
+          "gcc-libs/COPYING3",
+          "gcc-libs/COPYING.LIB",
+          "gcc-libs/COPYING.RUNTIME"
+        ]
+      },
+      "libstdc++-6.dll": {
+        "library": "GCC runtime (libstdc++)",
+        "msys2_package": "mingw-w64-x86_64-gcc-libs",
+        "msys2_licenses": "spdx:GPL-3.0-or-later WITH GCC-exception-3.1 AND LGPL-2.1-or-later",
+        "upstream_url": "https://gcc.gnu.org",
+        "licence_files": [
+          "gcc-libs/COPYING3",
+          "gcc-libs/COPYING.LIB",
+          "gcc-libs/COPYING.RUNTIME"
+        ]
+      },
+      "libwinpthread-1.dll": {
+        "library": "mingw-w64 winpthreads",
+        "msys2_package": "mingw-w64-x86_64-libwinpthread",
+        "msys2_licenses": "spdx:MIT AND BSD-3-Clause-Clear",
+        "upstream_url": "https://www.mingw-w64.org/",
+        "licence_files": [
+          "libwinpthread/COPYING"
+        ]
+      }
+    },
+    "_why_dlls_carry_their_licence": "Wie in gappa-pin.json: eine Liste, aus der sowohl kopiert als auch der Lizenzhinweis erzeugt wird. Die PAKETVERSION steht bewusst nicht hier - sie wird beim Bau gemessen.",
+    "vendored_licence_texts": {},
+    "_why_no_vendored_texts": "matiec braucht kein gmp und kein mpfr. Alle drei beiliegenden DLLs kommen aus MSYS2-Paketen, die ihre Lizenztexte selbst ablegen (gemessen 2026-09-13), und matiecs eigene Texte stehen im Quellbaum.",
+    "tool_licence": {
+      "spdx": "GPL-3.0-or-later AND LGPL-3.0-or-later",
+      "files_from_source_tree": [
+        "COPYING",
+        "lib/COPYING.LESSER"
+      ],
+      "_why": "Der Uebersetzer steht unter der GPL-3.0; die Laufzeitbibliothek unter lib/, die in erzeugten Code eingeht, unter der LGPL-3.0. Das ist der Grund fuer zwei Texte: wer erzeugten C-Code weitergibt, ist von der LGPL betroffen, nicht von der GPL."
+    },
+    "payload": {
+      "_why": "MATIEC_DIR muss `iec2c` und `lib/ieclib.txt` enthalten - so sucht tests/openplc.py. Ein `make install` gibt es nicht, das Nix-Rezept kopiert ebenfalls von Hand.",
+      "binary": "iec2c.exe",
+      "data_dir": "lib"
+    },
+    "source_is_published_beside_the_binary": true
+  }
+}

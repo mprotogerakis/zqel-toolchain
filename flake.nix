@@ -29,10 +29,40 @@
           import ./nix/creusot-darwin.nix { inherit creusot system; }
         else
           creusot.packages.${system}.free;
+
+      # matiec, umgezogen aus mprotogerakis/LoLa am 2026-09-14.
+      #
+      # Es gibt kein `make install`, das auslegt, was die Konformitaetstests
+      # erwarten: MATIEC_DIR muss `iec2c` und `lib/ieclib.txt` enthalten -
+      # genau so sucht tests/openplc.py drueben. Deshalb von Hand installiert.
+      #
+      # Die Revision ist DIESELBE wie in matiec-pin.json und im
+      # Konformitaets-Dockerfile. matiec meldet fuer jede Revision die Version
+      # 0.1, also ist die Revision die Identitaet - nicht die Version.
+      matiecFor = system:
+        let pkgs = import creusot.inputs.nixpkgs { inherit system; };
+        in pkgs.stdenv.mkDerivation {
+          pname = "matiec";
+          version = "unstable-7949c0b";
+          src = pkgs.fetchFromGitHub {
+            owner = "beremiz";
+            repo = "matiec";
+            rev = "7949c0bda1787de9c7cacaa4876ede49f85262dd";
+            hash = "sha256-zpR8eCvd2tL+oFTkL1ekxlMBsJru4VBJogo9ss6CEvM=";
+          };
+          nativeBuildInputs = [ pkgs.autoconf pkgs.automake pkgs.flex pkgs.bison ];
+          configurePhase = "autoreconf -i && ./configure";
+          installPhase = ''
+            mkdir -p $out
+            cp iec2c $out/
+            cp -r lib $out/lib
+          '';
+        };
     in {
       packages = forAllSystems (system:
         rec {
           creusot-free = packageFor system;
+          matiec = matiecFor system;
           default = creusot-free;
         });
 
@@ -51,6 +81,18 @@
             z3 --version
             cvc4 --version > /dev/null
             cvc5 --version > /dev/null
+            touch "$out"
+          '';
+
+          # matiec wird nicht ueber eine Version identifiziert - es meldet
+          # fuer JEDE Revision 0.1. Geprueft wird deshalb, was die
+          # Konformitaetstests drueben wirklich brauchen: iec2c laeuft, und
+          # lib/ieclib.txt liegt da, wo MATIEC_DIR es erwartet.
+          matiec-smoke = pkgs.runCommand "matiec-smoke" { } ''
+            m=${self.packages.${system}.matiec}
+            test -x "$m/iec2c"
+            test -f "$m/lib/ieclib.txt"
+            "$m/iec2c" -h 2>&1 | head -1
             touch "$out"
           '';
         });

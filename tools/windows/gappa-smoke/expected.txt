@@ -1,0 +1,2 @@
+holds.g   exit 0, keine Ausgabe
+fails.g   exit 1, stderr enthaelt: BND(|x - x_|), best: [8.67362e-19, 5.55112e-17]

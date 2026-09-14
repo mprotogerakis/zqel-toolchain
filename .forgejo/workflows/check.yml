@@ -37,7 +37,15 @@ jobs:
         run: test "$(nix eval --impure --raw --expr builtins.currentSystem)" = x86_64-linux
 
       - name: Build and smoke-test the complete Creusot closure
-        run: nix build -L .#checks.x86_64-linux.creusot-smoke
+        run: |
+          set -eu
+          exec </dev/null
+          nix build -L .#checks.x86_64-linux.creusot-smoke
+          # matiec gehoert seit dem 2026-09-14 dazu. Ohne diese Zeile stuende
+          # es zwar in der Flake, wuerde aber von nichts gebaut - und ein
+          # Paket, das niemand baut, ist irgendwann kaputt, ohne dass es
+          # auffaellt.
+          nix build -L .#checks.x86_64-linux.matiec-smoke
 
       - name: The content-addressed flake evaluates outside the checkout
         run: |

@@ -1,3 +1,24 @@
+# Dieselben Bytes auf jeder Plattform.
+#
+# git schreibt beim Auschecken standardmaessig Zeilenenden um. Auf Windows wird
+# aus LF dann CRLF - und damit ist die Datei eine ANDERE, byteweise. Fuer alles,
+# dessen Hash irgendwo festgehalten ist, ist das kein Schoenheitsfehler:
+#
+#   tools/windows/licenses/LGPL-3.0.txt
+#     LF   e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118
+#     CRLF 7d3a95e5e06978064ed3f8e2b7c8f845e7fd8a405294727cc708f94cb83b8059
+#
+# Gemessen am 2026-09-13: der gappa-Bau auf dem Windows-Runner brach an genau
+# dieser Stelle ab. Der Pin hatte recht - die ausgecheckte Datei war nicht die
+# gepinnte.
+#
+# Deshalb gilt LF im Arbeitsverzeichnis ueberall. `text=auto` erkennt
+# Binaerdateien selbst und laesst sie in Ruhe.
 * text=auto eol=lf
+
+# Die MSYS2-Bauskripte laufen unter bash. Mit CRLF scheitert das an ^M, und
+# zwar mit einer Meldung, die wie ein Syntaxfehler aussieht.
 *.sh text eol=lf
+
+# Was per Hash gepinnt ist, wird gar nicht erst angefasst.
 tools/windows/licenses/** -text
