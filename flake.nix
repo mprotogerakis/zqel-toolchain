@@ -22,8 +22,15 @@
 
   outputs = { self, creusot }:
     let
-      supportedSystems = [ "x86_64-linux" "aarch64-darwin" ];
-      forAllSystems = creusot.inputs.nixpkgs.lib.genAttrs supportedSystems;
+      # Creusot laeuft auf zweien: fuer die anderen gibt es keine gepruefte
+      # Closure, und eine ungeprueft anzubieten waere schlimmer als keine.
+      creusotSystems = [ "x86_64-linux" "aarch64-darwin" ];
+      # matiec ist schlichtes C++ und laeuft ueberall. Es hier zu beschraenken
+      # haette zqel gezwungen, fuer die uebrigen Systeme eine ZWEITE
+      # Ableitung zu behalten - genau die Doppelung, gegen die der Umzug war.
+      matiecSystems = creusotSystems ++ [ "aarch64-linux" "x86_64-darwin" ];
+      forAllSystems = creusot.inputs.nixpkgs.lib.genAttrs creusotSystems;
+      forMatiecSystems = creusot.inputs.nixpkgs.lib.genAttrs matiecSystems;
       packageFor = system:
         if system == "aarch64-darwin" then
           import ./nix/creusot-darwin.nix { inherit creusot system; }
@@ -59,12 +66,15 @@
           '';
         };
     in {
-      packages = forAllSystems (system:
-        rec {
-          creusot-free = packageFor system;
-          matiec = matiecFor system;
-          default = creusot-free;
-        });
+      packages =
+        # Erst matiec ueber ALLE Systeme, dann creusot-free darueber - so
+        # traegt jedes System, was es tragen kann, und keines verspricht mehr.
+        creusot.inputs.nixpkgs.lib.recursiveUpdate
+          (forMatiecSystems (system: { matiec = matiecFor system; }))
+          (forAllSystems (system: rec {
+            creusot-free = packageFor system;
+            default = creusot-free;
+          }));
 
       checks = forAllSystems (system:
         let
