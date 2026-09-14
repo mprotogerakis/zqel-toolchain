@@ -65,7 +65,23 @@ def closure(attr: str) -> list[str]:
         aus = subprocess.run(["nix", "build", "--no-link", "--print-out-paths", attr],
                              capture_output=True, text=True)
         if aus.returncode != 0:
-            raise SystemExit(f"{attr} liegt hier nicht vor:\n{aus.stderr[-1500:]}")
+            # NICHT dem Cache die Schuld geben, wenn der Aufruf schuld ist.
+            #
+            # `verify_nix_cache.py creusot-free` (ohne `.#`) meldete
+            # "creusot-free liegt hier nicht vor" - als fehlte etwas in der
+            # Ablage. In Wahrheit hat nix das FLAKE nicht gefunden. Genau der
+            # Fall, in dem eine Probe den Benutzer beschuldigt, statt zu
+            # sagen, was sie meint.
+            fehler = aus.stderr[-1500:]
+            if "in the flake registries" in fehler or "cannot find flake" in fehler:
+                raise SystemExit(
+                    f"{attr!r} ist kein Flake-Attribut, das nix aufloesen kann.\n"
+                    f"Gemeint war vermutlich '.#{attr}' - dieses Werkzeug "
+                    f"erwartet die Flake-Schreibweise oder einen Store-Pfad.\n"
+                    f"Der Cache wurde dabei gar nicht befragt.\n{fehler}")
+            raise SystemExit(
+                f"{attr} laesst sich hier nicht bauen - der Cache wurde noch "
+                f"nicht befragt:\n{fehler}")
         pfad = aus.stdout.strip().splitlines()[-1]
     aus = subprocess.run(["nix", "path-info", "-r", pfad],
                          capture_output=True, text=True, check=True)
