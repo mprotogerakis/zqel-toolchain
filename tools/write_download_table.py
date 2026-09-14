@@ -167,10 +167,22 @@ def eintraege() -> list[dict]:
          "—", "published by LoLa CI")
 
     for name, plattform in (("zqel-latest-linux-x86_64.tar.gz", "Linux x86_64"),
-                            ("zqel-latest-windows-amd64.zip", "Windows x86_64")):
+                            ("zqel-latest-windows-amd64.zip", "Windows x86_64"),
+                            ("zqel-latest-macos-arm64.tar.gz", "macOS arm64")):
         for n in (name, f"{name}.sha256"):
             dazu("zqel (latest)", n, f"zqel/latest/{n}", plattform,
                  "published by LoLa CI")
+
+    # Die Distributionspakete. Sie lagen bis zum 2026-09-14 NUR unter
+    # zqel/nightly/<datum>/ und trugen die Version im Dateinamen - ohne
+    # Verzeichnislisten musste man beides raten. Seit mprotogerakis/LoLa#350
+    # gibt es feste Namen; geliefert sind sie erst, wenn ein Nightly
+    # durchlaeuft (LoLa#348). Bis dahin stehen sie hier als fehlend, und
+    # genau dafuer ist diese Spalte da.
+    for n, plattform in (("zqel-latest-amd64.deb", "Linux x86_64"),
+                         ("zqel-latest-x86_64.rpm", "Linux x86_64")):
+        dazu("zqel (packages)", n, f"zqel/latest/{n}", plattform,
+             "published by LoLa CI")
 
     # 6. Der gepinnte Z3. Der Pin IST die Beweisidentitaet.
     #
@@ -262,6 +274,12 @@ def rumpf(eintr, stand) -> str:
         "rather than in someone's terminal.",
         "",
         f"{da} of {len(eintr)} addresses answered, {_groesse(bytes_)} in total.",
+        "",
+        "The `missing` rows are all zqel packages, and they have two causes,",
+        "both tracked in [the zqel repository](https://github.com/mprotogerakis/LoLa/issues):",
+        "the Linux build does not currently produce a startable binary, and",
+        "the macOS build has no runner registered against that repository.",
+        "The toolchain itself is complete.",
         "",
         tab,
         "",
