@@ -6,7 +6,7 @@ WOZU:
 nicht kontrollieren. Ein Tarball unter unserer eigenen Adresse setzt nur
 voraus, dass jemand HTTPS sprechen kann:
 
-    nix develop tarball+https://dl.zqel.org/flake/<sha256>.tar.gz
+    nix shell 'tarball+https://dl.zqel.org/flake/<sha256>.tar.gz#creusot-free'
 
 WARUM UEBER DEN HASH UND NICHT UEBER `latest`:
 Der Name benennt den Inhalt. Wer dieselbe Adresse zweimal aufruft, bekommt
@@ -117,7 +117,8 @@ def main(argv=None) -> int:
         return 0
     print(f"  {ziel}")
     print(f"  sha256 {summe}")
-    print(f"  nix develop tarball+https://dl.zqel.org/flake/{summe}.tar.gz")
+    print("  nix shell "
+          f"'tarball+https://dl.zqel.org/flake/{summe}.tar.gz#creusot-free'")
     return 0
 
 

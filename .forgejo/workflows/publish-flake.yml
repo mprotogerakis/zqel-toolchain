@@ -1,0 +1,84 @@
+name: Publish content-addressed flake
+
+# Publication credentials exist only in the internal Forgejo mirror.
+# Never add pull_request here: untrusted changes must not reach this job.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .forgejo/workflows/publish-flake.yml
+      - flake.nix
+      - flake.lock
+      - nix/**
+      - scripts/ci_install_nix.sh
+      - tools/pack_flake.py
+      - tools/probe_public_toolchain.py
+      - tools/publish_r2.py
+
+jobs:
+  publish-flake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout without an external action
+        run: |
+          set -eu
+          git init -q .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          git fetch -q --depth 1 origin "$GITHUB_SHA"
+          git checkout -q FETCH_HEAD
+          git log -1 --format="checked out: %H %s"
+
+      - name: Install Nix
+        run: bash scripts/ci_install_nix.sh
+
+      - name: Build and smoke-test before publication
+        run: nix build -L .#checks.x86_64-linux.creusot-smoke
+
+      - name: Pack and verify the standalone flake
+        run: |
+          set -eu
+          artifact=$(python3 tools/pack_flake.py --out build/flake --print-name)
+          nix flake metadata --json \
+            "tarball+file://$PWD/build/flake/$artifact" \
+            > build/flake/metadata.json
+
+      - name: Publish immutable artifact and navigation files
+        env:
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ID: ${{ secrets.R2_ID }}
+          R2_SECRET: ${{ secrets.R2_SECRET }}
+        run: |
+          set -eu
+          artifact=$(basename "$(find build/flake -name '*.tar.gz' -type f)")
+          sha256=${artifact%.tar.gz}
+          python3 tools/publish_r2.py --prefix flake "build/flake/$artifact"
+          python3 - "$sha256" > build/flake/latest.json <<'PY'
+          import datetime
+          import json
+          import os
+          import sys
+
+          digest = sys.argv[1]
+          url = f"https://dl.zqel.org/flake/{digest}.tar.gz"
+          print(json.dumps({
+              "sha256": digest,
+              "url": url,
+              "command": f"nix shell 'tarball+{url}#creusot-free'",
+              "created": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              "source_commit": os.environ.get("GITHUB_SHA", ""),
+              "_notice": ("Navigation only, not proof identity. Verdicts must "
+                          "bind the immutable SHA-256 URL."),
+          }, indent=2))
+          PY
+          python3 tools/publish_r2.py --prefix flake build/flake/latest.json
+          python3 tools/publish_r2.py --prefix flake tools/probe_public_toolchain.py
+
+      - name: Verify the bytes served publicly
+        run: |
+          set -eu
+          artifact=$(basename "$(find build/flake -name '*.tar.gz' -type f)")
+          python3 tools/probe_public_toolchain.py \
+            --url "https://dl.zqel.org/flake/$artifact" --mit-nix

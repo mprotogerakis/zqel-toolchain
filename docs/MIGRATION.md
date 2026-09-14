@@ -1,8 +1,9 @@
 # Migration from the private zqel repository
 
-The public repository contains no deployment secrets. GitHub builds and tests;
-the internal Forgejo mirror owns R2 and package credentials and performs
-publishing. A workflow that publishes must never run for a pull request and
+The public repository contains no deployment secrets. GitHub is source-only
+and has Actions disabled. The internal Forgejo mirror builds, tests, owns R2
+and package credentials, and performs publishing. A workflow that publishes
+must never run for a pull request and
 must fail closed when required credentials are absent on a publishing event.
 
 Migration proceeds in independently green steps:
