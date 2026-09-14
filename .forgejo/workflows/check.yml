@@ -1,0 +1,36 @@
+name: Check toolchains
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  creusot-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout without an external action
+        run: |
+          set -eu
+          git init -q .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          git fetch -q --depth 1 origin "$GITHUB_SHA"
+          git checkout -q FETCH_HEAD
+          git log -1 --format="checked out: %H %s"
+
+      - name: Install Nix
+        run: bash scripts/ci_install_nix.sh
+
+      - name: Confirm runner architecture
+        run: test "$(nix eval --impure --raw --expr builtins.currentSystem)" = x86_64-linux
+
+      - name: Build and smoke-test the complete Creusot closure
+        run: nix build -L .#checks.x86_64-linux.creusot-smoke
+
+      - name: The content-addressed flake evaluates outside the checkout
+        run: |
+          set -eu
+          artifact=$(python3 tools/pack_flake.py --out dist --print-name)
+          nix flake metadata --json "tarball+file://$PWD/dist/$artifact" > /dev/null

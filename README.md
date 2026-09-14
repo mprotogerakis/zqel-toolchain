@@ -30,8 +30,22 @@ scripts/creusot.sh smoke
 scripts/creusot.sh shell why3find --version
 ```
 
-Supported systems are `x86_64-linux` and `aarch64-darwin`. The GitHub Actions
-matrix builds and smoke-tests the full closure on both native architectures.
+Create the deterministic, SHA-256-named flake artifact with:
+
+```sh
+python3 tools/pack_flake.py
+```
+
+`main`, release tags and `latest.json` are navigation, not proof identity. A
+verdict must cite the content-addressed tarball. See
+[`docs/MIGRATION.md`](docs/MIGRATION.md) for the staged move from the private
+repository and the pending `toolchain-lock.json` binding.
+
+Supported systems are `x86_64-linux` and `aarch64-darwin`. GitHub is the public
+source host and has Actions disabled. The internal Forgejo mirror builds and
+smoke-tests the Linux closure without exposing publication credentials. The
+Darwin closure is locally proven; a native Forgejo macOS runner is still open
+work.
 
 ## Upstreaming
 
@@ -42,5 +56,6 @@ them; it should then reduce to aliases of the upstream outputs.
 
 ## License
 
-No license has been assigned yet. Choose one before inviting third-party
-contributions or redistributing code from this repository.
+No repository license has been assigned yet. Choose one before inviting
+third-party contributions. Redistributed third-party tools additionally retain
+their own notices and corresponding source/provenance obligations.
