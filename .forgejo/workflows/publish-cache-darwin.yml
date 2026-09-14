@@ -26,6 +26,16 @@ jobs:
     # Grosszuegig, weil ein KALTER Store die Beweiser erst uebersetzt. Auf
     # einer Maschine, die creusot-free schon gebaut hat, sind es Minuten.
     timeout-minutes: 360
+    # AUF EINEM HOST-RUNNER GIBT ES EIN TERMINAL - im Container nicht.
+    # Deshalb startete `git log` hier einen Pager und wartete auf eine Taste:
+    # der Job stand fast sechs Minuten bei "checked out: ..." und waere 360
+    # Minuten so geblieben. In den Linux-Jobs faellt dasselbe nie auf.
+    env:
+      GIT_PAGER: cat
+      PAGER: cat
+      # Und aus demselben Grund: nach Zugangsdaten fragen darf hier nichts,
+      # sonst haengt es genauso still.
+      GIT_TERMINAL_PROMPT: "0"
     steps:
       # MUSS VOR DEM CHECKOUT STEHEN.
       #
@@ -83,7 +93,9 @@ jobs:
           git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
           git fetch -q --depth 1 origin "$GITHUB_SHA"
           git checkout -q FETCH_HEAD
-          git log -1 --format="checked out: %H %s"
+          # --no-pager zusaetzlich zu GIT_PAGER: die Umgebung kann verloren
+          # gehen, die Option nicht.
+          git --no-pager log -1 --format="checked out: %H %s"
 
       # Auf einem Host-Runner wird NICHTS installiert. nix gehoert der
       # Maschine, nicht diesem Lauf. Wenn es fehlt, soll das hier stehen und
