@@ -42,11 +42,33 @@ if [ "$(uname -s)" != "Darwin" ] || [ "$(uname -m)" != "arm64" ]; then
   exit 1
 fi
 
-if [ -z "${FORGEJO_RUNNER_TOKEN:-}" ]; then
-  echo "FORGEJO_RUNNER_TOKEN ist nicht gesetzt." >&2
-  echo "In forgejo: Settings -> Actions -> Runners -> Create new runner." >&2
+# Ein Token wird nur fuer die ERSTE Anmeldung gebraucht. Steht .runner schon,
+# waere die Forderung reine Schikane - und genau das tat die erste Fassung:
+# sie verlangte nach erfolgreicher Anmeldung weiter ein Token.
+if [ ! -f "$ARBEIT/.runner" ] && [ -z "${FORGEJO_RUNNER_TOKEN:-}" ]; then
+  echo "Noch nicht angemeldet, und FORGEJO_RUNNER_TOKEN ist nicht gesetzt." >&2
+  echo "In forgejo: <repo> -> Settings -> Actions -> Runners" >&2
+  echo "            -> 'Create new runner' zeigt das Token." >&2
+  echo "Es ist kurzlebig: ein bereits benutztes wird mit" >&2
+  echo "'runner registration token not found' abgelehnt - dann neu erzeugen." >&2
   exit 1
 fi
+
+# KEINE Formpruefung auf Laenge oder Zeichenklasse.
+#
+# Der erste Entwurf verlangte 40 Zeichen aus [a-z0-9] - "damit der Fehler
+# frueh auffaellt". Gemessen an dieser Instanz am 2026-09-14: das Token hat
+# 43 Zeichen, Gross- UND Kleinbuchstaben und enthaelt - oder _. Die Pruefung
+# haette also ein gueltiges Token abgewiesen und dem Benutzer gesagt, er habe
+# das falsche kopiert.
+#
+# Ein Pruefer, der sich seine Erwartung ausdenkt, ist schlimmer als keiner.
+# Geprueft wird deshalb nur, was ohne Annahme ueber das Format erkennbar ist:
+# leer, oder mit Leerraum darin - das ist ein Kopierfehler, nichts sonst.
+case "${FORGEJO_RUNNER_TOKEN:-}" in
+  *[[:space:]]*) echo "Im Token steht Leerraum - beim Kopieren etwas mitgenommen?" >&2
+                 exit 1 ;;
+esac
 
 command -v nix >/dev/null || {
   echo "Kein nix im PATH - der Runner soll dasselbe nix benutzen wie du." >&2
@@ -99,12 +121,21 @@ echo "  Marke: $MARKE:host    Name: $NAME"
 echo "  Arbeitsverzeichnis: $ARBEIT"
 
 if [ ! -f "$ARBEIT/.runner" ]; then
-  nix run nixpkgs#forgejo-runner -- register \
-    --no-interactive \
-    --instance "$INSTANZ" \
-    --token "$FORGEJO_RUNNER_TOKEN" \
-    --name "$NAME" \
-    --labels "$MARKE:host"
+  if ! nix run nixpkgs#forgejo-runner -- register \
+      --no-interactive \
+      --instance "$INSTANZ" \
+      --token "$FORGEJO_RUNNER_TOKEN" \
+      --name "$NAME" \
+      --labels "$MARKE:host"; then
+    echo "" >&2
+    echo "Die Anmeldung ist gescheitert. Die Verbindung stand dabei - der" >&2
+    echo "Runner hat die Instanz erreicht (siehe 'pinged' oben). Es liegt" >&2
+    echo "also am Token selbst. Haeufigste Ursachen:" >&2
+    echo "  * es wurde schon einmal verbraucht -> in forgejo neu erzeugen" >&2
+    echo "  * es gehoert zu einem anderen Bereich als $INSTANZ" >&2
+    echo "  * beim Kopieren gekuerzt (die Anzeige bricht um)" >&2
+    exit 1
+  fi
 else
   echo "  bereits angemeldet (.runner liegt vor)"
 fi

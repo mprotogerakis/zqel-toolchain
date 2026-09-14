@@ -258,3 +258,18 @@ def test_that_check_would_notice_a_leak():
     sauber = 'echo "FORGEJO_RUNNER_TOKEN ist nicht gesetzt." >&2'
     assert "$FORGEJO_RUNNER_TOKEN" not in sauber
     assert "${FORGEJO_RUNNER_TOKEN" not in sauber
+
+
+def test_the_script_does_not_invent_a_token_format():
+    """Gemessen an der Instanz am 2026-09-14: das Registrierungstoken hat
+    43 Zeichen, Gross- und Kleinbuchstaben, und enthaelt - oder _.
+
+    Der erste Entwurf verlangte 40 Zeichen aus [a-z0-9] und haette ein
+    gueltiges Token abgewiesen - mit der Begruendung, der Benutzer habe das
+    falsche kopiert. Ein Pruefer, der sich seine Erwartung ausdenkt, ist
+    schlimmer als keiner.
+    """
+    quelle = (ROOT / "scripts" / "attach_macos_runner.sh").read_text(encoding="utf-8")
+    anweisungen = _anweisungen(quelle, "#")
+    assert "-ne 40" not in anweisungen, "wieder eine erfundene Laenge"
+    assert "a-z0-9" not in anweisungen, "wieder eine erfundene Zeichenklasse"
