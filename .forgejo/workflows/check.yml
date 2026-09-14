@@ -1,9 +1,19 @@
 name: Check toolchains
 
+# JEDER Zweig, nicht nur main.
+#
+# forgejo ist hier ein PULL-Spiegel von GitHub. Der Zweig kommt an, das
+# pull_request-EREIGNIS aber nicht - Pull Requests entstehen auf GitHub, und
+# dort sind Actions abgeschaltet. Mit `branches: [main]` lief deshalb ueber-
+# haupt kein Gate VOR einem Merge; geprueft wurde erst, was schon drin war.
+# Gemessen am 2026-09-14: der Zweig macos-ca-vertrauen lag im Spiegel, und
+# `status` meldete "no runs found".
+#
+# pull_request bleibt stehen: es traegt nichts, solange gespiegelt wird, ist
+# aber richtig, sobald jemand einen PR direkt in forgejo aufmacht.
 on:
   pull_request:
   push:
-    branches: [main]
   workflow_dispatch:
 
 jobs:

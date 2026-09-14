@@ -309,3 +309,20 @@ def test_the_trust_step_proves_itself_before_the_checkout_needs_it():
     anweisungen = _anweisungen(DARWIN, "#")
     assert "git ls-remote" in anweisungen
     assert anweisungen.index("git ls-remote") < anweisungen.index("git fetch")
+
+
+CHECK = (ROOT / ".forgejo" / "workflows" / "check.yml").read_text(encoding="utf-8")
+
+
+def test_every_branch_is_checked_not_only_main():
+    """forgejo ist ein PULL-Spiegel: der Zweig kommt an, das
+    pull_request-Ereignis nicht. Mit `push: branches: [main]` gab es deshalb
+    kein Gate VOR einem Merge - geprueft wurde erst, was schon drin war.
+
+    Gemessen am 2026-09-14: der Zweig lag im Spiegel, `status` meldete
+    "no runs found".
+    """
+    anweisungen = _anweisungen(CHECK, "#")
+    assert "branches: [main]" not in anweisungen, (
+        "dann prueft nichts einen Zweig, bevor er gemergt wird")
+    assert "push:" in anweisungen
