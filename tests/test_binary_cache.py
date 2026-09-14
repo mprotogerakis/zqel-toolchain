@@ -326,3 +326,25 @@ def test_every_branch_is_checked_not_only_main():
     assert "branches: [main]" not in anweisungen, (
         "dann prueft nichts einen Zweig, bevor er gemergt wird")
     assert "push:" in anweisungen
+
+
+def test_no_git_command_can_open_a_pager_on_a_host_runner():
+    """Ein Host-Runner hat ein Terminal, ein Container nicht.
+
+    `git log` startete deshalb einen Pager und wartete auf eine Taste: der
+    Job stand fast sechs Minuten bei "checked out: ..." und waere 360 Minuten
+    so geblieben. In den Linux-Jobs faellt dasselbe nie auf - dort gibt es
+    kein Terminal, das ein Pager benutzen koennte.
+    """
+    anweisungen = _anweisungen(DARWIN, "#")
+    assert "GIT_PAGER: cat" in anweisungen, "ohne das haengt der Job am Pager"
+    for zeile in anweisungen.splitlines():
+        if "git log" in zeile:
+            assert "--no-pager" in zeile, f"Pager moeglich: {zeile.strip()}"
+
+
+def test_nothing_can_stop_and_ask_for_credentials():
+    """Dieselbe Falle, anderer Ausloeser: eine Eingabeaufforderung auf einem
+    Runner ohne Benutzer haengt genauso still."""
+    anweisungen = _anweisungen(DARWIN, "#")
+    assert 'GIT_TERMINAL_PROMPT: "0"' in anweisungen
