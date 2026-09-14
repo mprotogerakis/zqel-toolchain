@@ -69,6 +69,15 @@ jobs:
             .#packages.x86_64-linux.creusot-free
           rm -f "$RUNNER_TEMP/nix-cache.key"
 
+      # Die Bindung ueber die Repositoriumsgrenze. zqel legt sich diese
+      # Datei in den Baum und prueft dagegen; aendert sich hier etwas, ohne
+      # dass sie drueben mitgeht, faellt es auf statt still zu driften.
+      - name: Check that toolchain-lock.json still matches the pins
+        run: |
+          set -eu
+          exec </dev/null
+          python3 tools/write_toolchain_lock.py --pruefen --out toolchain-lock.json
+
       - name: Pack and verify the standalone flake
         run: |
           set -eu

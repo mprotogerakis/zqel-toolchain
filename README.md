@@ -189,6 +189,22 @@ with Python — including one that has never seen our network.
 
 ---
 
+### What the mirror carries
+
+Third-party binaries are mirrored from their upstream releases, never repacked.
+Each archive travels with a `.notice.txt` naming its licence and the exact
+release it came from — that is the condition under which we may pass it on.
+
+`mirror-pin.json` holds the pinned versions and their SHA-256; the mirror runs
+only when that file changes. Afterwards the workflow **re-reads the public
+address** and checks the bytes it actually serves against the pin, because
+until then only the *downloaded* artifact had been verified.
+
+```console
+$ python3 tools/verify_public_mirror.py          # reachability and size
+$ python3 tools/verify_public_mirror.py --hash   # and the content, ~600 MB
+```
+
 ## For maintainers
 
 ```console
@@ -214,9 +230,12 @@ from the machine that builds it, because the credentials live in Forgejo and
 Forgejo has no Mac. Until a dedicated Apple Silicon runner exists, a laptop can
 join for the length of one job — see `scripts/attach_macos_runner.sh`.
 
-**`toolchain-lock.json` is pending.** zqel needs a generated, content-addressed
-record binding a verdict to the toolchain artifact that produced it. Until it
-exists, the binding is by convention rather than by check.
+**The lock is generated, but zqel does not read it yet.**
+`toolchain-lock.json` now names what this repository publishes — versions,
+licences, the finished addresses, the flake hash and the cache key — and CI
+refuses to publish if it has drifted from the pins. The other half is still
+open: zqel must vendor it and check against it, so that a verdict names the
+toolchain that produced it by more than convention.
 
 **Upstreaming.** The Darwin compatibility changes belong in Creusot's
 `nix/deps/why3find.nix`, `cvc4.nix` and `cvc5.nix`. This repository should
