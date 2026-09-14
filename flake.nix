@@ -1,6 +1,23 @@
 {
   description = "Public, reproducible verifier toolchains for zqel";
 
+  # Der eigene Binaercache. Gemessen an der macOS-Kette: von 157 Store-Pfaden
+  # liegen 135 in cache.nixos.org, die restlichen 22 nicht - und es sind genau
+  # die teuren (cvc4, cvc5 1.3.1, cryptominisat, why3 am Git-Pin, why3find,
+  # alt-ergo, glpk, die Rust-Nightly-Kette). Dieser Cache traegt NUR diese
+  # Luecke; alles andere holt nix weiter von upstream.
+  #
+  # nix fragt beim ersten Mal, ob es diese Einstellung uebernehmen darf. Das
+  # ist richtig so: ein Substituter, dem jemand vertraut, bestimmt mit,
+  # welcher Beweiser bei ihm laeuft. Wer nicht zustimmt, baut selbst - es
+  # geht dann langsamer, aber nichts geht kaputt.
+  nixConfig = {
+    extra-substituters = [ "https://dl.zqel.org/nix" ];
+    extra-trusted-public-keys = [
+      "dl.zqel.org-1:3a0HW0jbmoByRErCR1Oiixjklqib1uTQ2/yUXvBIrt4="
+    ];
+  };
+
   inputs.creusot.url = "github:creusot-rs/creusot/v0.13.0";
 
   outputs = { self, creusot }:

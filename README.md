@@ -50,6 +50,55 @@ smoke-tests the Linux closure without exposing publication credentials. The
 Darwin closure is locally proven; a native Forgejo macOS runner is still open
 work.
 
+## Binary cache
+
+Without a cache, the first `nix shell` compiles the provers. Measured on the
+Darwin closure: of 157 store paths, 135 are already in `cache.nixos.org` and
+22 are not — and those 22 are exactly the expensive ones (CVC4, CVC5 1.3.1,
+cryptominisat, why3 at its git pin, why3find, alt-ergo, glpk, the Rust
+nightly chain).
+
+This repository publishes a signed cache that carries **only that gap**;
+everything else still comes from upstream. The difference is what makes it
+affordable:
+
+| | |
+|---|---|
+| whole closure | 3.36 GB |
+| the gap alone | 1.09 GB uncompressed, roughly 0.38 GB as xz |
+
+The flake declares the substituter itself, so `nix` will ask once whether to
+accept it. Answering no is a legitimate choice — you then build from source,
+which is slower but not broken. To configure it by hand instead:
+
+```
+extra-substituters = https://dl.zqel.org/nix
+extra-trusted-public-keys = dl.zqel.org-1:3a0HW0jbmoByRErCR1Oiixjklqib1uTQ2/yUXvBIrt4=
+```
+
+A substituter you trust is load-bearing: whoever holds the key influences
+which prover runs on your machine. The private half exists only as a CI
+secret; nothing in this repository can sign.
+
+Check what the cache actually serves, from anywhere, without credentials:
+
+```sh
+python3 tools/verify_nix_cache.py .#packages.x86_64-linux.creusot-free
+```
+
+### What is not published yet, and why
+
+Only the `x86_64-linux` half. The Darwin closure can be **built** on a Mac and
+is locally proven, but it cannot be **published** from one: R2 credentials
+exist solely as Forgejo secrets, and Forgejo has no macOS runner (12 jobs on
+`ubuntu-latest`, 3 on `windows-amd64`, none on macOS). So the one machine that
+can produce those bytes cannot upload them, and the one place that can upload
+cannot produce them.
+
+That is a decision, not a bug to fix quietly. Either a native macOS runner
+joins Forgejo, or someone deliberately grants a Mac the credentials for a
+one-off push. Until then, macOS users build the 22 paths themselves.
+
 ## Upstreaming
 
 The compatibility changes belong upstream in Creusot's
