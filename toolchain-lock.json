@@ -1,0 +1,50 @@
+{
+  "_comment": "Erzeugt von tools/write_toolchain_lock.py in mprotogerakis/zqel-toolchain. Nicht von Hand bearbeiten - die Wahrheit stehen in den Pins und in flake.nix.",
+  "_hinweis_flake": "aktueller_flake_hash ist NAVIGATION. Wer ein Verdikt bindet, nennt den Hash ausdruecklich; diese Zeile bewegt sich.",
+  "schema": 1,
+  "erzeugt": "2026-09-14T08:49:34.850859+00:00",
+  "quell_commit": "8d74c39d469d7eeca26cfbded9880cb72ac4ff7c",
+  "cache": {
+    "substituter": "https://dl.zqel.org/nix",
+    "public_key": "dl.zqel.org-1:3a0HW0jbmoByRErCR1Oiixjklqib1uTQ2/yUXvBIrt4="
+  },
+  "aktueller_flake_hash": "ec7e4c3c0d172b567fa3327e3cbf89645a50a6f9d1aa96e4afb9fd534b9a177c",
+  "werkzeuge": {
+    "cbmc": {
+      "version": "6.4.0",
+      "spdx": "BSD-4-Clause",
+      "upstream": "https://github.com/diffblue/cbmc",
+      "herkunft": "gespiegelt",
+      "dateien": [
+        "https://dl.zqel.org/tools/cbmc/6.4.0/cbmc-6.4.0-win64.msi",
+        "https://dl.zqel.org/tools/cbmc/6.4.0/cbmc-6.4.0-win64.msi.notice.txt"
+      ]
+    },
+    "cvc5": {
+      "version": "1.2.0",
+      "spdx": "BSD-3-Clause",
+      "upstream": "https://github.com/cvc5/cvc5",
+      "herkunft": "gespiegelt",
+      "dateien": [
+        "https://dl.zqel.org/tools/cvc5/1.2.0/cvc5-Win64-x86_64-static.zip",
+        "https://dl.zqel.org/tools/cvc5/1.2.0/cvc5-Win64-x86_64-static.zip.notice.txt"
+      ]
+    },
+    "kani": {
+      "version": "0.67.0",
+      "spdx": "Apache-2.0 OR MIT",
+      "upstream": "https://github.com/model-checking/kani",
+      "herkunft": "gespiegelt",
+      "dateien": [
+        "https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-aarch64-apple-darwin.tar.gz",
+        "https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-aarch64-unknown-linux-gnu.tar.gz",
+        "https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-x86_64-apple-darwin.tar.gz",
+        "https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-x86_64-unknown-linux-gnu.tar.gz",
+        "https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-aarch64-apple-darwin.tar.gz.notice.txt",
+        "https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-aarch64-unknown-linux-gnu.tar.gz.notice.txt",
+        "https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-x86_64-apple-darwin.tar.gz.notice.txt",
+        "https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-x86_64-unknown-linux-gnu.tar.gz.notice.txt"
+      ]
+    }
+  }
+}

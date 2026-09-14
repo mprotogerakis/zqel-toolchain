@@ -1,0 +1,99 @@
+# Fremdartefakte spiegeln (mirror-pin.json).
+#
+# UMGEZOGEN AUS mprotogerakis/LoLa am 2026-09-14. Dort war es fehl am Platz:
+# das Spiegeln fremder Binaries hat mit zqels Semantik nichts zu tun, wohl
+# aber mit der Werkzeugkette - und es traegt Lizenzpflichten, die in einem
+# oeffentlichen Repository ueberhaupt erst nachvollziehbar sind.
+#
+# WARUM NICHT WOECHENTLICH:
+# Der Pin bewegt sich nicht von allein. Ein woechentlicher Lauf luede jede
+# Woche dieselben rund 500 MB hoch - kani allein sind vier Archive zu je 100
+# bis 140 MB. Gespiegelt wird deshalb genau dann, wenn sich der Pin aendert,
+# und auf Zuruf.
+#
+# Ein Pfadfilter auf einem VEROEFFENTLICHUNGS-Workflow ist unbedenklich -
+# anders als auf einem Gate, wo ein uebersprungener Lauf als "nichts zu
+# beanstanden" gelesen werden koennte.
+#
+# KEIN nix. Beide Werkzeuge sind reines stdlib; die devShell zu bauen waere
+# hier verschenkte Zeit.
+#
+# Niemals `pull_request`: die Zugaenge liegen nur im internen Spiegel, und
+# fremde Aenderungen duerfen sie nicht sehen.
+name: mirror-tools
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - mirror-pin.json
+      - tools/mirror_upstream.py
+      - tools/verify_public_mirror.py
+      - tools/publish_r2.py
+      - .forgejo/workflows/mirror-tools.yml
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout without an external action
+        run: |
+          set -eu
+          git init -q .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          git fetch -q --depth 1 origin "$GITHUB_SHA"
+          git checkout -q FETCH_HEAD
+          git --no-pager log -1 --format="checked out: %H %s"
+
+      - name: Holen und pruefen
+        run: |
+          set -eu
+          # Ohne --publish: erst holen, Hash gegen den Pin, und nachsehen, ob
+          # die Lizenztexte wirklich IN den Archiven liegen. Faellt eines
+          # davon durch, ist nichts hochgeladen worden.
+          python3 tools/mirror_upstream.py --out build/mirror
+
+      - name: Was geprueft wurde
+        run: |
+          set -eu
+          find build/mirror -type f | sort | sed 's|^build/mirror/|  |'
+          du -sh build/mirror | awk '{print "  zusammen: " $1}'
+
+      - name: Nach dl.zqel.org
+        # KEINE Bedingung auf die Zugaenge - mit Absicht. Eine solche machte
+        # aus einem lauten Fehlschlag ein stilles Ueberspringen: der Job
+        # liefe gruen durch und veroeffentlichte nichts. tools/publish_r2.py
+        # faellt selbst geschlossen aus.
+        env:
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ID: ${{ secrets.R2_ID }}
+          R2_SECRET: ${{ secrets.R2_SECRET }}
+        run: |
+          set -eu
+          for d in build/mirror/*/*/; do
+            werkzeug=$(basename "$(dirname "$d")")
+            version=$(basename "$d")
+            python3 tools/publish_r2.py \
+              --prefix "tools/$werkzeug/$version" "$d"*
+          done
+
+      # NACH dem Hochladen: was liefert die oeffentliche Adresse wirklich?
+      #
+      # Bis hierher war nur der Hash des HERUNTERGELADENEN Artefakts geprueft.
+      # Was danach im Bucket liegt, sah niemand an - ein abgebrochener Upload
+      # oder ein ueberschriebener Schluessel faellt sonst erst dem auf, der
+      # die Datei benutzt.
+      # Die Bindung ueber die Repositoriumsgrenze. zqel legt sich diese
+      # Datei in den Baum und prueft dagegen; aendert sich hier etwas, ohne
+      # dass sie drueben mitgeht, faellt es auf statt still zu driften.
+      - name: Check that toolchain-lock.json still matches the pins
+        run: |
+          set -eu
+          exec </dev/null
+          python3 tools/write_toolchain_lock.py --pruefen --out toolchain-lock.json
+
+      - name: Was die oeffentliche Adresse wirklich ausliefert
+        run: python3 tools/verify_public_mirror.py --hash

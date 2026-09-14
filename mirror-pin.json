@@ -1,0 +1,105 @@
+{
+  "_comment": [
+    "Fremdartefakte, die wir oeffentlich weitergeben - und was uns das auferlegt.",
+    "",
+    "WARUM UEBERHAUPT WEITERGEBEN: die forgejo-Registry loest auf 10.30.38.20 auf",
+    "und ist damit nur im HSD-Netz erreichbar. Wer draussen sitzt, kommt an nichts",
+    "heran. dl.zqel.org ist der oeffentliche Weg.",
+    "",
+    "WAS DAS BEDEUTET: oeffentlich spiegeln IST Weitergabe im Sinne der Lizenzen.",
+    "Ein Codex-Review am 2026-09-13 hat zu Recht bemaengelt, dass 'die Lizenzdatei",
+    "liegt irgendwo im Archiv' als Projektregel zu schwach ist - niemand hatte es",
+    "geprueft. Deshalb steht hier je Artefakt, WELCHE Lizenzdateien im Archiv",
+    "liegen, und tools/mirror_upstream.py prueft das nach, bevor es hochlaedt.",
+    "",
+    "WIR PACKEN NICHTS UM. Die Archive gehen byteweise unveraendert raus; was",
+    "hinzukommt, sind Beipackzettel daneben (.notice.txt), die Herkunft, Hash und",
+    "Lizenzlage benennen. Umpacken wuerde aus einer Weitergabe eine Bearbeitung",
+    "machen, und dann gaelten andere Pflichten.",
+    "",
+    "Keine Rechtsberatung. Die Closure gehoert einmal lizenzfachlich abgenommen;",
+    "siehe Issue #323."
+  ],
+  "tools": {
+    "cvc5": {
+      "version": "1.2.0",
+      "_why_this_version": "Die Version der devShell. 1.3.4 ist neuer und hat ebenfalls Windows-Artefakte - aber ein Beweiser, der je nach Plattform ein anderer ist, laesst sich nicht vergleichen.",
+      "upstream": "https://github.com/cvc5/cvc5",
+      "spdx": "BSD-3-Clause",
+      "_licence_note": "Modifizierte BSD. cvc5 KANN gegen GPL-Bibliotheken (CLN, GLPK) gelinkt werden, tut es aber standardmaessig nicht - wir spiegeln die Variante OHNE '-gpl' im Namen. Das Archiv fuehrt zusaetzlich gpl-3.0.txt und lgpl-3.0.txt mit, weil cvc5 gegen GMP (LGPLv3) linkt; nach cvc5s eigener COPYING bleibt das kombinierte Werk unter der modifizierten BSD.",
+      "artifacts": {
+        "cvc5-Win64-x86_64-static.zip": {
+          "url": "https://github.com/cvc5/cvc5/releases/download/cvc5-1.2.0/cvc5-Win64-x86_64-static.zip",
+          "sha256": "256f4af3f4181e770801df436852cb3c76c86dbf9b69a47064d7f8d5bc0ee1d2",
+          "size": 27326355,
+          "licence_files_inside": [
+            "cvc5-Win64-x86_64-static/COPYING",
+            "cvc5-Win64-x86_64-static/licenses/gpl-3.0.txt",
+            "cvc5-Win64-x86_64-static/licenses/lgpl-3.0.txt",
+            "cvc5-Win64-x86_64-static/licenses/minisat-LICENSE"
+          ]
+        }
+      }
+    },
+    "cbmc": {
+      "version": "6.4.0",
+      "_why_this_version": "Die Version der devShell; 6.11.0 ist neuer. Beide haben ein win64.msi.",
+      "upstream": "https://github.com/diffblue/cbmc",
+      "spdx": "BSD-4-Clause",
+      "_licence_note": "BSD mit Werbeklausel (Ziffer 3): wer in Werbematerial Merkmale dieser Software nennt, muss die Danksagung an Kroening, Clarke, Oxford und Carnegie Mellon anzeigen. Ziffer 2 verlangt, dass Hinweis, Bedingungen und Haftungsausschluss bei einer Binaerweitergabe 'in der Dokumentation oder anderen beiliegenden Materialien' wiedergegeben werden - genau dafuer ist der Beipackzettel da. Ein .msi laesst sich nicht ohne Windows durchsehen, deshalb liegt der Lizenztext hier als eigene Datei statt als Verweis ins Archiv.",
+      "licence_sidecar": {
+        "name": "cbmc-6.4.0-LICENSE.txt",
+        "url": "https://raw.githubusercontent.com/diffblue/cbmc/cbmc-6.4.0/LICENSE",
+        "sha256": "858c0e744b9bab750f6b2801c6921db8c64076d90201977d6219666a75eba0f9"
+      },
+      "artifacts": {
+        "cbmc-6.4.0-win64.msi": {
+          "url": "https://github.com/diffblue/cbmc/releases/download/cbmc-6.4.0/cbmc-6.4.0-win64.msi",
+          "sha256": "4891b45b83b4540e9d69e9b5d898e250540b545efc2af6336f83c8b8d3185517",
+          "size": 26923008
+        }
+      }
+    },
+    "kani": {
+      "version": "0.67.0",
+      "_why_this_version": "Die Fassung, die `cargo install` hier gesetzt hat. kani kommt auf KEINER Plattform aus nix - deshalb sind hier alle vier Artefakte, nicht nur die von Windows. Windows gibt es upstream nicht.",
+      "upstream": "https://github.com/model-checking/kani",
+      "spdx": "Apache-2.0 OR MIT",
+      "_licence_note": "Doppelt lizenziert. Apache-2.0 verlangt die Behandlung einer NOTICE-Datei, falls vorhanden - kani hat keine (gemessen 2026-09-13: HTTP 404). Das Archiv fuehrt license-notes.txt mit.",
+      "artifacts": {
+        "kani-0.67.0-aarch64-apple-darwin.tar.gz": {
+          "url": "https://github.com/model-checking/kani/releases/download/kani-0.67.0/kani-0.67.0-aarch64-apple-darwin.tar.gz",
+          "sha256": "7fd0b71130aa37bd1e346eba675aad09e9b66e4b383f707fc657330ceb29eeec",
+          "size": 104168339,
+          "licence_files_inside": [
+            "kani-0.67.0/license-notes.txt"
+          ]
+        },
+        "kani-0.67.0-aarch64-unknown-linux-gnu.tar.gz": {
+          "url": "https://github.com/model-checking/kani/releases/download/kani-0.67.0/kani-0.67.0-aarch64-unknown-linux-gnu.tar.gz",
+          "sha256": "974128f44dd43618a06d21e5fe6d9ff67188de5986fe0bc57b534b0e4639efb9",
+          "size": 137826806,
+          "licence_files_inside": [
+            "kani-0.67.0/license-notes.txt"
+          ]
+        },
+        "kani-0.67.0-x86_64-apple-darwin.tar.gz": {
+          "url": "https://github.com/model-checking/kani/releases/download/kani-0.67.0/kani-0.67.0-x86_64-apple-darwin.tar.gz",
+          "sha256": "e394c3d940ed9df4f67ef5388c5612f1bf63e671670b193844d6b59c92544bc9",
+          "size": 109597412,
+          "licence_files_inside": [
+            "kani-0.67.0/license-notes.txt"
+          ]
+        },
+        "kani-0.67.0-x86_64-unknown-linux-gnu.tar.gz": {
+          "url": "https://github.com/model-checking/kani/releases/download/kani-0.67.0/kani-0.67.0-x86_64-unknown-linux-gnu.tar.gz",
+          "sha256": "3b5f7afd3b51603ee720db7bc1bc4fe46b5a4f5d36daad9939c4b4c658b51ac0",
+          "size": 143387767,
+          "licence_files_inside": [
+            "kani-0.67.0/license-notes.txt"
+          ]
+        }
+      }
+    }
+  }
+}
