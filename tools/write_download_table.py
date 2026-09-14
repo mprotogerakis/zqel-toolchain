@@ -38,6 +38,16 @@ import urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 BASIS = "https://dl.zqel.org"
+#: Eine inhaltsadressierte Flake-Adresse: der Hash IST der Name.
+#:
+#: Erkannt wird die FORM, nicht der aktuelle Wert. Der erste Versuch schloss
+#: die Adresse aus, die `latest.json` gerade nennt - und meldete daraufhin den
+#: AELTEREN Hash in der README als Ueberschuss (gemessen: forgejo 3212). Eine
+#: Ausnahme, die den Wert kennt statt die Form, verfehlt genau den Fall, fuer
+#: den sie da ist.
+INHALTSADRESSIERT = re.compile(
+    r"^https://dl\.zqel\.org/(?:zqel/)?flake/[0-9a-f]{64}\.tar\.gz$")
+
 ANFANG = "<!-- downloads:anfang -->"
 ENDE = "<!-- downloads:ende -->"
 ZEIT = 60
@@ -359,14 +369,15 @@ def main(argv=None) -> int:
         abschnitt = alt.split(ANFANG, 1)[1].split(ENDE, 1)[0]
         ausserhalb = alt.replace(abschnitt, "")
 
-        fluechtig = {e["url"] for e in eintr if e.get("fluechtig")}
         ohne_link = {e["url"] for e in eintr
                      if stand[e["url"]][0] not in (200, -1)}
-        soll = {e["url"] for e in eintr} - fluechtig
-        ist = set(re.findall(r"\((https://dl\.zqel\.org/[^)\s]+)\)", abschnitt))
+        soll = {e["url"] for e in eintr if not INHALTSADRESSIERT.match(e["url"])}
+        ist = {u for u in re.findall(
+            r"\((https://dl\.zqel\.org/[^)\s]+)\)", abschnitt)
+            if not INHALTSADRESSIERT.match(u)}
 
         fehlt = (soll - ohne_link) - ist
-        zuviel = (ist - soll) - fluechtig
+        zuviel = ist - soll
         for u in sorted(fehlt):
             print(f"  fehlt in der Tabelle:   {u}")
         for u in sorted(zuviel):
@@ -377,7 +388,8 @@ def main(argv=None) -> int:
         alle = {e["url"] for e in eintr}
         fremd = {u for u in re.findall(
             r"\((https://dl\.zqel\.org/[^)\s]+)\)", ausserhalb)
-            if u not in alle and not u.rstrip("/").endswith("dl.zqel.org")}
+            if u not in alle and not INHALTSADRESSIERT.match(u)
+            and not u.rstrip("/").endswith("dl.zqel.org")}
         for u in sorted(fremd):
             print(f"  verwiesen, aber aus keinem Pin abgeleitet: {u}")
 
