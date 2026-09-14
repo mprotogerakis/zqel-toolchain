@@ -189,11 +189,21 @@ def main(argv=None) -> int:
     print(f"\n  {len(hochladen)} narinfo + {len(nars)} NAR, zusammen "
           f"{bytes_/1048576:.1f} MB")
 
-    lauf([sys.executable, "tools/publish_r2.py", "--prefix", PRAEFIX,
-          *[str(f) for f in hochladen]])
+    # ERST DIE NARs, DANN DIE NARINFOS. Die Reihenfolge ist nicht beliebig.
+    #
+    # Ein narinfo ist das Versprechen "diesen Pfad habe ich, hol ihn unter
+    # dieser URL". Liegt es vor seinem NAR, verspricht der Cache waehrend des
+    # ganzen Uploads etwas, das er nicht liefern kann - und bricht der Lauf
+    # dazwischen ab, bleibt es dauerhaft so. Am 2026-09-14 waehrend des
+    # Darwin-Laufs von aussen gemessen: narinfo 200, NAR 404.
+    #
+    # Andersherum ist der Zwischenstand harmlos: ein NAR, auf das noch kein
+    # narinfo zeigt, findet niemand und stoert niemanden.
     if nars:
         lauf([sys.executable, "tools/publish_r2.py", "--prefix", f"{PRAEFIX}/nar",
               *[str(f) for f in nars]])
+    lauf([sys.executable, "tools/publish_r2.py", "--prefix", PRAEFIX,
+          *[str(f) for f in hochladen]])
 
     print(f"\n  Substituter: {ZIEL}/{PRAEFIX}")
     print("  Der oeffentliche Schluessel steht in flake.nix (nixConfig).")
