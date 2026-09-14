@@ -1,0 +1,152 @@
+#!/usr/bin/env bash
+# Einen macOS-Runner VORUEBERGEHEND an forgejo anschliessen.
+#
+# WOZU:
+# Die Darwin-Haelfte des Binaercaches kann nur ein Apple-Silicon-Mac bauen,
+# und die R2-Zugaenge sollen die Maschine nicht dauerhaft besitzen. Ein
+# Runner, der sich fuer die Dauer eines Laufs anmeldet, loest beides: die
+# Geheimnisse kommen aus forgejo, landen nur waehrend des Jobs auf der
+# Platte und sind danach weg.
+#
+# WAS DU WISSEN SOLLTEST, BEVOR DU IHN STARTEST:
+#
+#   * Ein HOST-Runner fuehrt Jobs ohne Container aus - also mit den Rechten
+#     des Kontos, unter dem du dieses Skript startest. Waehrend er laeuft,
+#     kann jeder Job dieses Repositories auf deine Dateien zugreifen. Genau
+#     deshalb ist der Workflow `workflow_dispatch`-only und der Runner soll
+#     danach wieder weg.
+#   * Der Runner verbindet nur nach AUSSEN (Long-Poll ueber HTTPS/2). Der
+#     Server ruft dich nie an. Kein eingehender Port, kein Tunnel - gemessen
+#     am 2026-09-14: der RPC-Pfad antwortet ueber die VPN mit 400, nicht 404.
+#   * Faellt die VPN mitten im Lauf aus, stirbt der Job. Das ist ein
+#     Wiederholungsfall, kein Schaden - der Cache ist inhaltsadressiert.
+#   * Der Runner selbst ist KEINE Beweisidentitaet. Er ordnet an, er erzeugt
+#     nichts. Deshalb darf er aus dem nixpkgs deiner Registry kommen und
+#     braucht keinen Pin.
+#
+# AUFRUF:
+#   FORGEJO_RUNNER_TOKEN=... scripts/attach_macos_runner.sh
+#
+# Das Token bekommst du in forgejo unter Settings -> Actions -> Runners
+# ("Create new runner"). Es ist ein REGISTRIERUNGSTOKEN, kein Zugangstoken -
+# es erlaubt genau das Anmelden eines Runners.
+set -euo pipefail
+
+INSTANZ="${FORGEJO_INSTANCE:-https://git.ei.intern.hs-duesseldorf.de}"
+MARKE="${RUNNER_LABEL:-macos-arm64}"
+NAME="${RUNNER_NAME:-mac-$(scutil --get LocalHostName 2>/dev/null || hostname -s)}"
+ARBEIT="${RUNNER_DIR:-$HOME/.cache/zqel-forgejo-runner}"
+
+if [ "$(uname -s)" != "Darwin" ] || [ "$(uname -m)" != "arm64" ]; then
+  echo "Dieses Skript ist fuer Apple Silicon. Hier: $(uname -s)/$(uname -m)" >&2
+  exit 1
+fi
+
+# Ein Token wird nur fuer die ERSTE Anmeldung gebraucht. Steht .runner schon,
+# waere die Forderung reine Schikane - und genau das tat die erste Fassung:
+# sie verlangte nach erfolgreicher Anmeldung weiter ein Token.
+if [ ! -f "$ARBEIT/.runner" ] && [ -z "${FORGEJO_RUNNER_TOKEN:-}" ]; then
+  echo "Noch nicht angemeldet, und FORGEJO_RUNNER_TOKEN ist nicht gesetzt." >&2
+  echo "In forgejo: <repo> -> Settings -> Actions -> Runners" >&2
+  echo "            -> 'Create new runner' zeigt das Token." >&2
+  echo "Es ist kurzlebig: ein bereits benutztes wird mit" >&2
+  echo "'runner registration token not found' abgelehnt - dann neu erzeugen." >&2
+  exit 1
+fi
+
+# KEINE Formpruefung auf Laenge oder Zeichenklasse.
+#
+# Der erste Entwurf verlangte 40 Zeichen aus [a-z0-9] - "damit der Fehler
+# frueh auffaellt". Gemessen an dieser Instanz am 2026-09-14: das Token hat
+# 43 Zeichen, Gross- UND Kleinbuchstaben und enthaelt - oder _. Die Pruefung
+# haette also ein gueltiges Token abgewiesen und dem Benutzer gesagt, er habe
+# das falsche kopiert.
+#
+# Ein Pruefer, der sich seine Erwartung ausdenkt, ist schlimmer als keiner.
+# Geprueft wird deshalb nur, was ohne Annahme ueber das Format erkennbar ist:
+# leer, oder mit Leerraum darin - das ist ein Kopierfehler, nichts sonst.
+case "${FORGEJO_RUNNER_TOKEN:-}" in
+  *[[:space:]]*) echo "Im Token steht Leerraum - beim Kopieren etwas mitgenommen?" >&2
+                 exit 1 ;;
+esac
+
+command -v nix >/dev/null || {
+  echo "Kein nix im PATH - der Runner soll dasselbe nix benutzen wie du." >&2
+  exit 1
+}
+
+# Die Gegenprobe VOR der Anmeldung: erreicht diese Maschine die Instanz?
+# Ein Runner, der sich nicht anmelden kann, haengt sonst still.
+#
+# KEIN /dev/tcp. Gemessen am 2026-09-14 auf macOS 15 (Apple Silicon):
+#
+#   cat < /dev/null > /dev/tcp/host/443    funktioniert
+#   exec 3<> /dev/tcp/host/443             wird mit SIGKILL beendet (exit 137)
+#
+# und zwar in bash 5.2 aus nixpkgs GENAUSO wie in Apples bash 3.2. Die
+# erste Fassung dieses Skripts benutzte die zweite Form und meldete deshalb
+# "nicht erreichbar" fuer eine Instanz, die im Browser einwandfrei lief.
+# curl ist ohnehin das bessere Instrument: es prueft auch das TLS, und genau
+# darueber redet der Runner.
+wirt=${INSTANZ#https://}
+wirt=${wirt%%/*}
+code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$INSTANZ/" || true)
+if [ -z "$code" ] || [ "$code" = "000" ]; then
+  echo "$INSTANZ ist nicht erreichbar - VPN an?" >&2
+  echo "(curl meldete '${code:-nichts}')" >&2
+  exit 1
+fi
+echo "  $wirt erreichbar (HTTP $code)"
+
+# Schaerfer: antwortet auch der Pfad, ueber den act_runner spricht? Eine 404
+# hiesse, die Actions-API ist auf dieser Instanz nicht aktiv - dann haengt
+# der Runner spaeter, ohne zu sagen warum.
+rpc=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 -X POST \
+  -H 'Content-Type: application/json' -d '{}' \
+  "$INSTANZ/api/actions/runner.v1.RunnerService/Register" || true)
+case "$rpc" in
+  404|000|"") echo "Der Runner-Endpunkt antwortet mit '${rpc:-nichts}'." >&2
+              echo "Sind Actions auf dieser Instanz aktiv?" >&2
+              exit 1 ;;
+  *)          echo "  Runner-Endpunkt antwortet (HTTP $rpc)" ;;
+esac
+
+mkdir -p "$ARBEIT"
+cd "$ARBEIT"
+
+# `:host` heisst: ohne Container, direkt auf dieser Maschine. Das ist hier der
+# Zweck - ein Container koennte den /nix/store dieses Macs nicht benutzen, und
+# dann waere von "schon gebaut" nichts uebrig.
+echo "  Marke: $MARKE:host    Name: $NAME"
+echo "  Arbeitsverzeichnis: $ARBEIT"
+
+if [ ! -f "$ARBEIT/.runner" ]; then
+  if ! nix run nixpkgs#forgejo-runner -- register \
+      --no-interactive \
+      --instance "$INSTANZ" \
+      --token "$FORGEJO_RUNNER_TOKEN" \
+      --name "$NAME" \
+      --labels "$MARKE:host"; then
+    echo "" >&2
+    echo "Die Anmeldung ist gescheitert. Die Verbindung stand dabei - der" >&2
+    echo "Runner hat die Instanz erreicht (siehe 'pinged' oben). Es liegt" >&2
+    echo "also am Token selbst. Haeufigste Ursachen:" >&2
+    echo "  * es wurde schon einmal verbraucht -> in forgejo neu erzeugen" >&2
+    echo "  * es gehoert zu einem anderen Bereich als $INSTANZ" >&2
+    echo "  * beim Kopieren gekuerzt (die Anzeige bricht um)" >&2
+    exit 1
+  fi
+else
+  echo "  bereits angemeldet (.runner liegt vor)"
+fi
+
+cat <<'HINWEIS'
+
+  Der Runner laeuft jetzt im Vordergrund.
+  Loese den Workflow in forgejo aus: "Publish the Darwin binary cache".
+  Danach: Strg-C. Zum endgueltigen Abmelden das Arbeitsverzeichnis loeschen
+  und den Runner in forgejo entfernen.
+
+HINWEIS
+
+exec nix run nixpkgs#forgejo-runner -- daemon

@@ -36,6 +36,39 @@ jobs:
       - name: Build and smoke-test before publication
         run: nix build -L .#checks.x86_64-linux.creusot-smoke
 
+      # Der Binaercache. Haengt bewusst an DIESEN Bau: die Closure ist hier
+      # schon warm, und was veroeffentlicht wird, ist damit genau das, was der
+      # Rauchtest eben bestanden hat.
+      #
+      # Hochgeladen wird nur, was cache.nixos.org nicht hat. Gemessen an der
+      # macOS-Kette: 22 von 157 Pfaden, 1.09 GB unkomprimiert statt 3.36 GB.
+      - name: Fill the signed binary cache
+        env:
+          NIX_SIGNING_KEY: ${{ secrets.NIX_SIGNING_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ID: ${{ secrets.R2_ID }}
+          R2_SECRET: ${{ secrets.R2_SECRET }}
+        run: |
+          set -eu
+          if [ -z "${NIX_SIGNING_KEY:-}" ]; then
+            echo "NIX_SIGNING_KEY ist nicht gesetzt - der Cache bliebe leer."
+            zweig="${GITHUB_REF_NAME:-main}"
+            if [ "$zweig" = "main" ]; then
+              echo "Auf main ist das ein Fehler, kein zulaessiger Fall."
+              exit 1
+            fi
+            echo "Auf '$zweig' zulaessig - hier wird nichts veroeffentlicht."
+            exit 0
+          fi
+          # Der Schluessel darf nur als Datei existieren und nur fuer uns.
+          umask 077
+          printf '%s' "$NIX_SIGNING_KEY" > "$RUNNER_TEMP/nix-cache.key"
+          python3 tools/publish_nix_cache.py \
+            --key "$RUNNER_TEMP/nix-cache.key" \
+            .#packages.x86_64-linux.creusot-free
+          rm -f "$RUNNER_TEMP/nix-cache.key"
+
       - name: Pack and verify the standalone flake
         run: |
           set -eu
@@ -82,3 +115,7 @@ jobs:
           artifact=$(basename "$(find build/flake -name '*.tar.gz' -type f)")
           python3 tools/probe_public_toolchain.py \
             --url "https://dl.zqel.org/flake/$artifact" --mit-nix
+
+      # Ein Cache, den niemand von aussen abfragt, ist eine Behauptung.
+      - name: Verify the cache answers as an outsider
+        run: python3 tools/verify_nix_cache.py .#packages.x86_64-linux.creusot-free
