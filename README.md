@@ -283,7 +283,13 @@ marked `missing` is something this project promises and does not
 currently deliver; that is deliberate, so the gap is visible here
 rather than in someone's terminal.
 
-45 of 47 addresses answered, 903.0 MB in total.
+45 of 51 addresses answered, 903.0 MB in total.
+
+The `missing` rows are all zqel packages, and they have two causes,
+both tracked in [the zqel repository](https://github.com/mprotogerakis/LoLa/issues):
+the Linux build does not currently produce a startable binary, and
+the macOS build has no runner registered against that repository.
+The toolchain itself is complete.
 
 | Group | File | Platform | Size (measured 2026-09-14) |
 | --- | --- | --- | --- |
@@ -322,6 +328,10 @@ rather than in someone's terminal.
 |  | zqel-latest-linux-x86_64.tar.gz.sha256 | Linux x86_64 | **missing (404)** |
 |  | [zqel-latest-windows-amd64.zip](https://dl.zqel.org/zqel/latest/zqel-latest-windows-amd64.zip) | Windows x86_64 | 59.9 MB |
 |  | [zqel-latest-windows-amd64.zip.sha256](https://dl.zqel.org/zqel/latest/zqel-latest-windows-amd64.zip.sha256) | Windows x86_64 | 66 B |
+|  | zqel-latest-macos-arm64.tar.gz | macOS arm64 | **missing (404)** |
+|  | zqel-latest-macos-arm64.tar.gz.sha256 | macOS arm64 | **missing (404)** |
+| zqel (packages) | zqel-latest-amd64.deb | Linux x86_64 | **missing (404)** |
+|  | zqel-latest-x86_64.rpm | Linux x86_64 | **missing (404)** |
 | Z3 pin (z3-nightly-0d4a2db) | [z3-pin.json](https://dl.zqel.org/zqel/z3/z3-nightly-0d4a2db/z3-pin.json) | — | 9 KB |
 |  | [z3-src-0d4a2dbb188d.tar.gz](https://dl.zqel.org/zqel/z3/z3-nightly-0d4a2db/z3-src-0d4a2dbb188d.tar.gz) | — | 6.5 MB |
 |  | [z3_solver-5.1.0.0-py3-none-macosx_11_0_arm64.whl](https://dl.zqel.org/zqel/z3/z3-nightly-0d4a2db/z3_solver-5.1.0.0-py3-none-macosx_11_0_arm64.whl) | macOS arm64 | 37.9 MB |
