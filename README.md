@@ -53,13 +53,24 @@ zqel's world: 4.15.3 here for Why3, and a separately pinned build that travels
 
 ### Where each one runs
 
+Two different things are called "Nix" below, and the difference matters.
+**This flake** is `tarball+https://dl.zqel.org/flake/<sha256>.tar.gz#<attr>` —
+it carries what nixpkgs does not. **nixpkgs** carries Gappa and CBMC already,
+and in release 24.11 it carries *exactly* the pinned versions — measured:
+`gappa 1.4.0`, `cbmc 6.4.0`. That is not a coincidence: those versions are
+pinned *because* that is what the development shell has.
+
 | | Linux x86_64 | macOS arm64 | Windows x86_64 |
 |---|---|---|---|
-| Creusot, Why3, why3find, Alt-Ergo, CVC4 | Nix flake | Nix flake | builds, but Why3 is missing |
-| Gappa | Nix flake | Nix flake | [installer](https://dl.zqel.org/tools/gappa/1.4.0/gappa-1.4.0-win_amd64-setup.exe) · [zip](https://dl.zqel.org/tools/gappa/1.4.0/gappa-1.4.0-win_amd64.zip) · [source](https://dl.zqel.org/tools/gappa/1.4.0/gappa-1.4.0.tar.gz) |
-| matiec | Nix flake | Nix flake | [installer](https://dl.zqel.org/tools/matiec/0.1-7949c0b/matiec-0.1-7949c0b-win_amd64-setup.exe) · [zip](https://dl.zqel.org/tools/matiec/0.1-7949c0b/matiec-0.1-7949c0b-win_amd64.zip) · [source](https://dl.zqel.org/tools/matiec/0.1-7949c0b/matiec-7949c0b.tar.gz) |
-| CBMC | package manager | package manager | [msi](https://dl.zqel.org/tools/cbmc/6.4.0/cbmc-6.4.0-win64.msi) · [licence](https://dl.zqel.org/tools/cbmc/6.4.0/cbmc-6.4.0-LICENSE.txt) |
-| CVC5 (standalone) | via Creusot flake | via Creusot flake | [zip](https://dl.zqel.org/tools/cvc5/1.2.0/cvc5-Win64-x86_64-static.zip) |
+| Creusot, Why3, why3find, Alt-Ergo, CVC4 | this flake, `#creusot-free` | this flake, `#creusot-free` | builds, but Why3 is missing |
+| matiec | this flake, `#matiec` | this flake, `#matiec` | [installer](https://dl.zqel.org/tools/matiec/0.1-7949c0b/matiec-0.1-7949c0b-win_amd64-setup.exe) · [zip](https://dl.zqel.org/tools/matiec/0.1-7949c0b/matiec-0.1-7949c0b-win_amd64.zip) · [source](https://dl.zqel.org/tools/matiec/0.1-7949c0b/matiec-7949c0b.tar.gz) |
+| Gappa | nixpkgs 24.11 — `nix shell nixpkgs#gappa` | nixpkgs 24.11 | [installer](https://dl.zqel.org/tools/gappa/1.4.0/gappa-1.4.0-win_amd64-setup.exe) · [zip](https://dl.zqel.org/tools/gappa/1.4.0/gappa-1.4.0-win_amd64.zip) · [source](https://dl.zqel.org/tools/gappa/1.4.0/gappa-1.4.0.tar.gz) |
+| CBMC | nixpkgs 24.11 — `nix shell nixpkgs#cbmc` | nixpkgs 24.11 | [msi](https://dl.zqel.org/tools/cbmc/6.4.0/cbmc-6.4.0-win64.msi) · [licence](https://dl.zqel.org/tools/cbmc/6.4.0/cbmc-6.4.0-LICENSE.txt) |
+| CVC5 (standalone) | via `#creusot-free` (1.3.1) | via `#creusot-free` (1.3.1) | [zip](https://dl.zqel.org/tools/cvc5/1.2.0/cvc5-Win64-x86_64-static.zip) (1.2.0) |
+
+A **newer** nixpkgs is not automatically better here: current nixpkgs carries
+`cbmc 6.10.0`, and that is a different prover from the one the gate ran. Pin
+the nixpkgs release, not just the package.
 | Kani | [x86_64](https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-x86_64-unknown-linux-gnu.tar.gz) · [arm64](https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-aarch64-unknown-linux-gnu.tar.gz) | [x86_64](https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-x86_64-apple-darwin.tar.gz) · [arm64](https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-aarch64-apple-darwin.tar.gz) | upstream refuses Windows |
 
 Every mirrored archive has a `.notice.txt` beside it naming the licence and
