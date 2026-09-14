@@ -65,16 +65,26 @@
             cp -r lib $out/lib
           '';
         };
+      # Nur fuer das Experiment aus creusot-rs/creusot#2248 - siehe
+      # nix/creusot-gmp.nix. Kein Auslieferungsartefakt.
+      gmpVariante = system:
+        import ./nix/creusot-gmp.nix { inherit creusot system; };
     in {
       packages =
         # Erst matiec ueber ALLE Systeme, dann creusot-free darueber - so
         # traegt jedes System, was es tragen kann, und keines verspricht mehr.
         creusot.inputs.nixpkgs.lib.recursiveUpdate
           (forMatiecSystems (system: { matiec = matiecFor system; }))
-          (forAllSystems (system: rec {
-            creusot-free = packageFor system;
-            default = creusot-free;
-          }));
+          (creusot.inputs.nixpkgs.lib.recursiveUpdate
+            (forAllSystems (system: rec {
+              creusot-free = packageFor system;
+              default = creusot-free;
+            }))
+            # Absichtlich nur x86_64-linux: das Experiment isoliert das
+            # Arithmetik-Backend, indem es beide Varianten auf DERSELBEN
+            # Plattform baut. Auf Darwin gaebe es nichts zu vergleichen -
+            # dort ist GMP die einzige, die ueberhaupt baut.
+            { x86_64-linux.creusot-gmp = gmpVariante "x86_64-linux"; });
 
       checks = forAllSystems (system:
         let
