@@ -13,13 +13,13 @@ pins while fixing the Nix build closure for why3find, CVC4, CVC5 and CoCoALib.
 Install the complete wrapper persistently:
 
 ```sh
-nix profile add github:mprotogerakis/zqel-toolchain#creusot-free
+nix profile add github:mprotogerakis/zqel-toolchain/v0.1.0#creusot-free
 ```
 
 Or use it without changing a profile:
 
 ```sh
-nix shell github:mprotogerakis/zqel-toolchain#creusot-free
+nix shell github:mprotogerakis/zqel-toolchain/v0.1.0#creusot-free
 ```
 
 From a checkout:
