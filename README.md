@@ -257,28 +257,10 @@ refuses to publish if it has drifted from the pins. The other half is still
 open: zqel must vendor it and check against it, so that a verdict names the
 toolchain that produced it by more than convention.
 
-**Upstreaming — open, with an answer owed.** The Darwin compatibility changes
-belong in Creusot's `nix/deps/why3find.nix`, `cvc4.nix` and `cvc5.nix`. This
-repository should shrink to aliases of the upstream outputs once a tagged
-Creusot release carries them.
-
-Opened as [creusot-rs/creusot#2248](https://github.com/creusot-rs/creusot/issues/2248).
-Upstream's reply raised the part that actually matters: two of the three
-changes are packaging (a code signer for why3find, a missing `<cstddef>`), but
-the third is not. Turning `-DUSE_CLN=1` into `0` for cvc4 and cvc5 changes the
-**arithmetic backend of the provers that discharge our goals** — so a verdict
-produced on Darwin and one produced on Linux do not come from the same prover
-configuration.
-
-We did not know what that costs, so we are measuring it rather than arguing
-it. `packages.x86_64-linux.creusot-gmp` builds the Darwin variant **on Linux**,
-where the CLN build also works: that isolates the arithmetic backend, since
-comparing Darwin/GMP against Linux/CLN would move two things at once. The
-comparison itself lives in the LoLa repository, where the proof corpus is —
-85 of its 131 goals go to cvc4/cvc5, so the corpus carries the question.
-
-A difference in **verdict** would be a finding. A difference in **time** would
-not.
+**Upstreaming.** The Darwin compatibility changes belong in Creusot's
+`nix/deps/why3find.nix`, `cvc4.nix` and `cvc5.nix`. This repository should
+shrink to aliases of the upstream outputs once a tagged Creusot release carries
+them.
 
 ---
 
@@ -330,7 +312,7 @@ rather than in someone's terminal.
 |  | [matiec-0.1-7949c0b-win_amd64-setup.exe.sha256](https://dl.zqel.org/tools/matiec/0.1-7949c0b/matiec-0.1-7949c0b-win_amd64-setup.exe.sha256) | Windows x86_64 | 106 B |
 |  | [matiec-7949c0b.tar.gz](https://dl.zqel.org/tools/matiec/0.1-7949c0b/matiec-7949c0b.tar.gz) | source | 713 KB |
 |  | [matiec-7949c0b.tar.gz.sha256](https://dl.zqel.org/tools/matiec/0.1-7949c0b/matiec-7949c0b.tar.gz.sha256) | source | 89 B |
-| toolchain flake | [afd798890655….tar.gz](https://dl.zqel.org/flake/afd79889065580cf8c0d3d6f23c0b601964de8ff9ec8586a4570323e5eb09d7c.tar.gz) | Linux, macOS | 4 KB ·moves |
+| toolchain flake | [6820409c349b….tar.gz](https://dl.zqel.org/flake/6820409c349bb527cb9dc738ed6ac6736f496013095ae89d715e1c12b5121140.tar.gz) | Linux, macOS | 5 KB ·moves |
 |  | [latest.json](https://dl.zqel.org/flake/latest.json) | — | 551 B |
 |  | [probe_public_toolchain.py](https://dl.zqel.org/flake/probe_public_toolchain.py) | — | 7 KB |
 | nix binary cache | [nix-cache-info](https://dl.zqel.org/nix/nix-cache-info) | Linux, macOS | 21 B |

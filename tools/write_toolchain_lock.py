@@ -83,40 +83,29 @@ def _commit() -> str:
 
 
 def sammle() -> dict:
-    werkzeuge: dict[str, dict] = {}
+    # Die Adressen kommen aus tools/toolchain_adressen.py - EINER Stelle.
+    # Vorher stand die Ableitung zweimal im Baum, und die eigenen Bauten
+    # trugen hier `"dateien": []` mit dem Vorsatz "wird vom Windows-Bau
+    # gefuellt". Das ist nie passiert: der Lock versprach Vollstaendigkeit
+    # und liess genau die Werkzeuge aus, bei denen eine Lizenzpflicht am
+    # Quelltext haengt.
+    from toolchain_adressen import adressen, alle
 
-    spiegel = json.loads((WURZEL / "mirror-pin.json").read_text(encoding="utf-8"))
-    for name, t in sorted(spiegel["tools"].items()):
-        version = t["version"]
-        dateien = sorted((t.get("artifacts") or {}))
-        beilagen = [f"{d}.notice.txt" for d in dateien]
-        werkzeuge[name] = {
-            "version": version,
-            "spdx": t.get("spdx", ""),
-            "upstream": t.get("upstream", ""),
-            "herkunft": "gespiegelt",
-            "dateien": [f"{BASIS}/tools/{name}/{version}/{d}"
-                        for d in dateien + beilagen],
+    werkzeuge = {}
+    for name, w in alle().items():
+        eintrag = {
+            "version": w["version"],
+            "spdx": w["spdx"],
+            "upstream": w["upstream"],
+            "herkunft": w["herkunft"],
+            "dateien": adressen(w),
         }
-
-    # Selbst gebaute Werkzeuge, sobald ihre Pins hier liegen. Fehlt einer,
-    # wird er NICHT stillschweigend ausgelassen - er taucht dann in der Datei
-    # gar nicht auf, und der Test drueben merkt es.
-    for pin, name in (("gappa-pin.json", "gappa"), ("matiec-pin.json", "matiec")):
-        p = WURZEL / pin
-        if not p.exists():
-            continue
-        d = json.loads(p.read_text(encoding="utf-8"))
-        version = d["version"]
-        if d.get("revision"):
-            version = f"{version}-{d['revision'][:7]}"
-        werkzeuge[name] = {
-            "version": version,
-            "spdx": (d.get("windows_build", {}).get("tool_licence", {}) or {}).get("spdx", ""),
-            "upstream": d.get("upstream_project", ""),
-            "herkunft": "selbst gebaut",
-            "dateien": [],   # wird vom Windows-Bau gefuellt
-        }
+        if w["revision"]:
+            # Die VOLLE Revision. Ohne sie kann zqel matiec nicht binden:
+            # dort steht sie mit 40 Zeichen in flake.nix, die Anzeigeversion
+            # traegt sieben.
+            eintrag["revision"] = w["revision"]
+        werkzeuge[name] = eintrag
 
     return {
         "_comment": (
