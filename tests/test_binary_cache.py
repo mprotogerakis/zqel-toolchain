@@ -348,3 +348,25 @@ def test_nothing_can_stop_and_ask_for_credentials():
     Runner ohne Benutzer haengt genauso still."""
     anweisungen = _anweisungen(DARWIN, "#")
     assert 'GIT_TERMINAL_PROMPT: "0"' in anweisungen
+
+
+def test_no_step_on_the_host_runner_can_stop_and_ask():
+    """Ein Host-Runner hat ein TERMINAL - ein Container nicht. Alles, was
+    fragen KANN, fragt dort und wartet still.
+
+    Zweimal passiert: erst `git log` mit seinem Pager (6 Minuten bei
+    "checked out: ..."), dann `nix` mit der Frage nach unserem EIGENEN
+    nixConfig (6 Minuten bei 0,0 % CPU - es arbeitete nicht, es wartete).
+
+    Gemessen: mit geschlossener Eingabe warnt nix nur
+    ("Pass --accept-flake-config to trust it") und laeuft weiter.
+    """
+    import re
+    bloecke = re.split(r"^      - name: ", DARWIN, flags=re.M)[1:]
+    ohne = []
+    for b in bloecke:
+        if "run:" not in b:
+            continue
+        if "exec </dev/null" not in b:
+            ohne.append(b.splitlines()[0].strip())
+    assert not ohne, "diese Schritte koennen auf einem Terminal haengen:\n  " + "\n  ".join(ohne)
