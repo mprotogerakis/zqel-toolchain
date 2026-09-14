@@ -1,0 +1,62 @@
+{
+  "$schema": "https://aka.ms/winget-packages.schema.2.0.json",
+  "_comment": [
+    "Was eine Windows-Baumaschine braucht und nix ihr nicht geben kann (#317).",
+    "",
+    "ABSICHTLICH KURZ. Die korrektheitstragende Abhaengigkeit steht NICHT hier:",
+    "Z3 ist in requirements.txt per Artefakt-Hash gepinnt (z3-nightly-0d4a2db) und",
+    "gilt dort plattformunabhaengig. Die Flake sagt selbst, dass sie Z3 nicht mehr",
+    "baut. Was hier steht, ist reine BAUINFRASTRUKTUR — und nur sie.",
+    "",
+    "Nicht hier, weil Linux-only und hinter Gates: matiec, cbmc, creusot, why3,",
+    "gappa. Deren Tests ueberspringen auf Windows.",
+    "",
+    "winget prueft den Installer-Hash des Herausgebers vor der Installation. Das",
+    "ist weniger als eine nix-Ableitung, aber mehr als nichts — und es ist das,",
+    "was auf dieser Plattform ohne zweites Paketsystem zu haben ist.",
+    "",
+    "Anwenden: powershell -ExecutionPolicy Bypass -File tools/windows/provision.ps1",
+    "",
+    "MSYS2 und Inno Setup stehen hier, seit Windows sein eigenes gappa baut (gappa-pin.json). MSYS2 ist die MinGW-Toolchain, Inno Setup baut den Installer. Was INNERHALB von MSYS2 gebraucht wird, steht in deps.msys2.txt — winget kennt keine Compiler-Bibliotheken. Zwei Systeme, aber je eine Liste.",
+    "",
+    "",
+    "SCOPE IST NICHT KOSMETIK. Der act_runner-Dienst laeuft als NT AUTHORITY\\SYSTEM (gemessen 2026-09-13). winget installiert standardmaessig ins Benutzerprofil - dort sieht SYSTEM nichts davon, waehrend `winget list` es brav anzeigt. Genau daran scheiterte der Windows-Nightly zweimal: als SYSTEM fehlten python UND pwsh.",
+    "",
+    "PowerShell 7 steht NICHT mehr hier. winget antwortet auf `--scope machine` mit 'No applicable installer found' - es KANN das auf diesem System nicht. Ein Manifest, das etwas auffuehrt, was die Anwendung nicht liefert, ist schlimmer als eines, das schweigt: es sieht beim Lesen erledigt aus. provision.ps1 holt das MSI direkt und sagt dort, warum."
+  ],
+  "CreationDate": "2026-09-13",
+  "Sources": [
+    {
+      "Packages": [
+        {
+          "PackageIdentifier": "Git.Git",
+          "Version": "2.55.0.3"
+        },
+        {
+          "PackageIdentifier": "Python.Python.3.12",
+          "Version": "3.12.10",
+          "Scope": "machine"
+        },
+        {
+          "PackageIdentifier": "Microsoft.VisualStudio.2022.BuildTools"
+        },
+        {
+          "PackageIdentifier": "MSYS2.MSYS2",
+          "Version": "20260611"
+        },
+        {
+          "PackageIdentifier": "JRSoftware.InnoSetup",
+          "Version": "6.7.3",
+          "Scope": "machine"
+        }
+      ],
+      "SourceDetails": {
+        "Argument": "https://cdn.winget.microsoft.com/cache",
+        "Identifier": "Microsoft.Winget.Source_8wekyb3d8bbwe",
+        "Name": "winget",
+        "Type": "Microsoft.PreIndexed.Package"
+      }
+    }
+  ],
+  "WinGetVersion": "1.6.10121"
+}

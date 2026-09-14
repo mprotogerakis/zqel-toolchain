@@ -2,8 +2,8 @@
   "_comment": "Erzeugt von tools/write_toolchain_lock.py in mprotogerakis/zqel-toolchain. Nicht von Hand bearbeiten - die Wahrheit stehen in den Pins und in flake.nix.",
   "_hinweis_flake": "aktueller_flake_hash ist NAVIGATION. Wer ein Verdikt bindet, nennt den Hash ausdruecklich; diese Zeile bewegt sich.",
   "schema": 1,
-  "erzeugt": "2026-09-14T08:49:34.850859+00:00",
-  "quell_commit": "8d74c39d469d7eeca26cfbded9880cb72ac4ff7c",
+  "erzeugt": "2026-09-14T09:31:58.158645+00:00",
+  "quell_commit": "3b8ba9270fa96620d7e7436d7afc01d193d1c03b",
   "cache": {
     "substituter": "https://dl.zqel.org/nix",
     "public_key": "dl.zqel.org-1:3a0HW0jbmoByRErCR1Oiixjklqib1uTQ2/yUXvBIrt4="
@@ -45,6 +45,20 @@
         "https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-x86_64-apple-darwin.tar.gz.notice.txt",
         "https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-x86_64-unknown-linux-gnu.tar.gz.notice.txt"
       ]
+    },
+    "gappa": {
+      "version": "1.4.0",
+      "spdx": "CECILL-2.1 AND GPL-3.0-or-later",
+      "upstream": "https://gitlab.inria.fr/gappa/gappa",
+      "herkunft": "selbst gebaut",
+      "dateien": []
+    },
+    "matiec": {
+      "version": "0.1-7949c0b",
+      "spdx": "GPL-3.0-or-later AND LGPL-3.0-or-later",
+      "upstream": "https://github.com/beremiz/matiec",
+      "herkunft": "selbst gebaut",
+      "dateien": []
     }
   }
 }

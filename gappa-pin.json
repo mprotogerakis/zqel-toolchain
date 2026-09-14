@@ -1,0 +1,122 @@
+{
+  "_comment": [
+    "Das Gappa, an das dieses Repository gebunden ist — wie bei Z3 per Hash,",
+    "nicht per 'neueste Version'.",
+    "",
+    "WARUM GEPINNT UND NICHT 'AKTUELL':",
+    "Gappa ist ein Beweiswerkzeug. Seine Version steht in der Beweiskette, nicht",
+    "daneben. Eine neue Version kann eine Schranke enger oder weiter ziehen und",
+    "damit ein Verdikt drehen, ohne dass eine Zeile zqel sich aendert. Ein",
+    "woechentlicher Lauf, der ungefragt auf den neuesten Tag springt, wuerde",
+    "genau das still tun. Der Lauf prueft Upstream deshalb und MELDET Drift; er",
+    "hebt den Pin nicht an.",
+    "",
+    "WARUM 1.4.0 UND NICHT 1.8.3:",
+    "1.4.0 ist, was die devShell auf Linux und macOS aarch64 liefert (gemessen",
+    "am 2026-09-13: `gappa --version` -> Gappa 1.4.0). Windows war die einzige",
+    "Plattform ohne gappa. Ein Windows-Paket mit 1.8.3 haette die Luecke",
+    "geschlossen und dafuer eine Asymmetrie eingebaut — dieselbe, die wir bei",
+    "z3 win_arm64 (5.2.0.0 statt 5.1.0.0) bewusst NICHT eingegangen sind.",
+    "Erst hebt die devShell, dann dieser Pin. Nicht umgekehrt.",
+    "",
+    "Upstream steht am 2026-09-13 bei gappa-1.8.3 (2026-09-09). Das ist ein",
+    "bekannter Abstand, kein Versehen; siehe die Upstream-Pruefung im Workflow.",
+    "",
+    "WARUM UEBERHAUPT SELBST BAUEN: weil es nichts Fertiges gibt. Gemessen am 2026-09-13 kennt MSYS2 15725 Pakete und kein gappa; Upstream veroeffentlicht nur Quell-Tarballs, keine Windows-Binaerdateien. Bei cvc5 und cbmc liegt das anders - dort gibt es fertige Windows-Artefakte, und zwar in genau den Versionen, die auch die devShell fuehrt."
+  ],
+  "upstream_project": "https://gitlab.inria.fr/gappa/gappa",
+  "version": "1.4.0",
+  "upstream_tag": "gappa-1.4.0",
+  "checked_on": "2026-09-13",
+  "upstream_latest_when_checked": "gappa-1.8.3",
+  "matches_devshell": true,
+  "source": {
+    "gappa-1.4.0.tar.gz": {
+      "sha256": "6bf17688f0d0d0815713f3c3ad56774727ac516c38ab5b1b2d20df00d217a48b",
+      "size": 387988,
+      "url": "https://gappa.gitlabpages.inria.fr/releases/gappa-1.4.0.tar.gz",
+      "_why": "Das ist die Release-Datei des Projekts gappa/gappa selbst; gappa.gitlabpages.inria.fr ist dessen Pages-Seite. Der Tag-Archivtarball von GitLab braucht autogen.sh und damit autoconf auf der Baumaschine — der Release-Tarball bringt `configure` fertig mit."
+    }
+  },
+  "windows_build": {
+    "toolchain": "MSYS2 / MINGW64",
+    "link": "dynamisch",
+    "_why_dynamic": "GMP und MPFR stehen unter LGPLv3. Statisch gelinkt laeuft gappa.exe zwar allein (gemessen: 21434128 Bytes, keine fremde DLL), verpflichtet uns aber, eine Relink-Moeglichkeit beizulegen. Dynamisch plus die fuenf DLLs ist der lizenzsaubere Weg und der, den das Paket geht.",
+    "runtime_dlls": {
+      "libgcc_s_seh-1.dll": {
+        "library": "GCC runtime",
+        "msys2_package": "mingw-w64-x86_64-gcc-libs",
+        "msys2_licenses": "spdx:GPL-3.0-or-later WITH GCC-exception-3.1 AND LGPL-2.1-or-later",
+        "upstream_url": "https://gcc.gnu.org",
+        "licence_files": [
+          "gcc-libs/COPYING3",
+          "gcc-libs/COPYING.LIB",
+          "gcc-libs/COPYING.RUNTIME"
+        ],
+        "_note": "Die Runtime Library Exception ist der Grund, warum ein mit GCC uebersetztes Programm nicht selbst unter die GPL faellt. Ihr Text MUSS beiliegen."
+      },
+      "libgmp-10.dll": {
+        "library": "GNU MP",
+        "msys2_package": "mingw-w64-x86_64-gmp",
+        "msys2_licenses": "LGPL3  GPL",
+        "upstream_url": "https://gmplib.org/",
+        "licence_files": [
+          "LGPL-3.0.txt",
+          "tool/COPYING.GPL"
+        ],
+        "_note": "Doppelt lizenziert: LGPL-3.0-or-later ODER GPL-2.0-or-later. Wir geben es unter der LGPL-3.0 weiter. MSYS2 legt fuer dieses Paket KEINEN Lizenztext ab (gemessen) - deshalb liegt LGPL-3.0.txt im Repo."
+      },
+      "libmpfr-6.dll": {
+        "library": "GNU MPFR",
+        "msys2_package": "mingw-w64-x86_64-mpfr",
+        "msys2_licenses": "spdx:LGPL-3.0-or-later",
+        "upstream_url": "https://www.mpfr.org",
+        "licence_files": [
+          "LGPL-3.0.txt",
+          "tool/COPYING.GPL"
+        ],
+        "_note": "LGPL-3.0 ist formal die GPL-3.0 plus Zusatzerlaubnisse; §4(b) verlangt beide Texte."
+      },
+      "libstdc++-6.dll": {
+        "library": "GCC runtime (libstdc++)",
+        "msys2_package": "mingw-w64-x86_64-gcc-libs",
+        "msys2_licenses": "spdx:GPL-3.0-or-later WITH GCC-exception-3.1 AND LGPL-2.1-or-later",
+        "upstream_url": "https://gcc.gnu.org",
+        "licence_files": [
+          "gcc-libs/COPYING3",
+          "gcc-libs/COPYING.LIB",
+          "gcc-libs/COPYING.RUNTIME"
+        ]
+      },
+      "libwinpthread-1.dll": {
+        "library": "mingw-w64 winpthreads",
+        "msys2_package": "mingw-w64-x86_64-libwinpthread",
+        "msys2_licenses": "spdx:MIT AND BSD-3-Clause-Clear",
+        "upstream_url": "https://www.mingw-w64.org/",
+        "licence_files": [
+          "libwinpthread/COPYING"
+        ]
+      }
+    },
+    "_configure_note": "`configure` waehlt den Zweig fuer sein Bauwerkzeug `remake` nach `uname -s`. Unter der MSYS-Standardshell meldet das `MSYS_NT-...`, trifft den Unix-Zweig und linkt remake ohne `-lws2_32` — Abbruch mit undefined reference auf __imp_send/__imp_recv. Mit MSYSTEM=MINGW64 meldet uname `MINGW64_NT-...` und der Windows-Zweig greift. Kein gappa-Fehler, die falsche Subshell.",
+    "_why_dlls_carry_their_licence": "Damit es die Liste nur EINMAL gibt. Das Bauskript kopiert nach dieser Liste, holt die genannten Lizenztexte und schreibt NOTICE.txt und SOURCES.txt aus derselben Quelle. Was NICHT hier steht, ist die Paketversion: die wird beim Bau GEMESSEN und berichtet. Eine Version im Pin waere nach dem naechsten pacman-Lauf falsch, und ein falscher Herkunftsnachweis ist schlimmer als keiner. Gepinnt ist, was stabil sein MUSS: welche DLLs mitfahren duerfen, unter welcher Lizenz, und welche Texte beiliegen.",
+    "vendored_licence_texts": {
+      "LGPL-3.0.txt": {
+        "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118",
+        "size": 7652,
+        "source": "https://www.gnu.org/licenses/lgpl-3.0.txt",
+        "_why": "gmp und mpfr stehen darunter, legen den Text aber nicht bei (gemessen 2026-09-13). Im Repo statt beim Bau geholt: ein Lizenztext, den der Bau aus dem Netz zieht, ist eine Netzabhaengigkeit an der heikelsten Stelle."
+      }
+    },
+    "tool_licence": {
+      "spdx": "CECILL-2.1 AND GPL-3.0-or-later",
+      "files_from_source_tree": [
+        "COPYING",
+        "COPYING.GPL"
+      ],
+      "_why": "gappa steht unter der CeCILL 2.1 und legt zusaetzlich die GPL-3.0 bei. Beide Texte kommen aus dem entpackten Tarball, also aus genau der Quelle, die `source` per Hash benennt. Im Paket landen sie unter licenses/tool/ - generisch benannt, weil dasselbe Modul auch matiec und kuenftige Werkzeuge packt."
+    },
+    "source_is_published_beside_the_binary": true,
+    "_why_source_beside_binary": "Der Quell-Tarball ist 388 KB. Ihn neben das Binary in dieselbe Paketversion zu legen kostet nichts und beantwortet die Frage 'wo kommt der uebersetzte Quellcode her' ohne Verweis auf einen fremden Server, der morgen anders antworten kann."
+  }
+}

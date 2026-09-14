@@ -1,0 +1,5 @@
+iec2c -I <lib> -T <out> counter.st   muss exit 0 liefern und erzeugen:
+  POUS.c  POUS.h  LOCATED_VARIABLES.h  VARIABLES.csv
+  Config0.c  Config0.h  Res0.c
+Gemessen am 2026-09-13 auf dem Windows-Runner, aus dem Paket heraus und mit
+nacktem PATH - also ohne MSYS2, nur mit den drei beiliegenden DLLs.

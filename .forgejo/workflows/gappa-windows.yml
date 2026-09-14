@@ -1,0 +1,167 @@
+# Das Windows-gappa: bauen, paketieren, veroeffentlichen.
+#
+# WARUM WOECHENTLICH UND NICHT TAEGLICH:
+# Der Pin bewegt sich nicht von allein (gappa-pin.json), also waere ein
+# taeglicher Lauf taeglich dasselbe Artefakt. Was sich bewegt, ist die
+# Baumaschine: MSYS2 aktualisiert gcc, boost, gmp und mpfr laufend. Ein
+# woechentlicher Lauf misst genau das - ob unsere Bauanleitung auf einer
+# fortgeschriebenen Toolchain noch traegt. Das ist der Ertrag, nicht das Zip.
+#
+# WARUM ER DEN PIN NICHT ANHEBT:
+# Gappa ist ein Beweiswerkzeug; seine Version steht in der Beweiskette. Der
+# Lauf FRAGT Upstream und meldet Abstand. Er entscheidet nicht.
+# Umgezogen aus mprotogerakis/LoLa am 2026-09-14.
+name: gappa-windows
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+jobs:
+  gappa-win-amd64:
+    runs-on: windows-amd64
+    timeout-minutes: 90
+    steps:
+      - name: Auschecken ohne externe Action
+        shell: pwsh
+        run: |
+          # Wie im Nightly: `actions/checkout` liegt auf code.forgejo.org und
+          # dieser Runner kommt dort nicht heran (gemessen 2026-09-13).
+          git init -q .
+          git remote add origin "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY"
+          git fetch -q --depth 1 origin $env:GITHUB_SHA
+          git checkout -q FETCH_HEAD
+          git log -1 --format="ausgecheckt: %H %s"
+
+      - name: Die Maschine hat, was die Manifeste verlangen
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File tools/windows/provision.ps1 -VerifyOnly
+
+      - name: Bauen, pruefen, paketieren
+        shell: pwsh
+        run: |
+          $sw = [Diagnostics.Stopwatch]::StartNew()
+          powershell -ExecutionPolicy Bypass -File tools/windows/build_gappa.ps1 -Out dist\gappa
+          if ($LASTEXITCODE -ne 0) { throw "build_gappa exit $LASTEXITCODE" }
+          $sw.Stop()
+          "Dauer_min: " + [math]::Round($sw.Elapsed.TotalMinutes, 1)
+          $v = (Get-Content gappa-pin.json -Raw | ConvertFrom-Json).version
+          "GAPPA_VERSION=$v" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Was gebaut wurde
+        shell: pwsh
+        run: |
+          Get-Content "dist\gappa\stage\PIN.txt"
+          Get-ChildItem dist\gappa\* -File |
+            Select-Object Name, @{n="MB"; e={[math]::Round($_.Length/1MB, 2)}} | Format-Table -AutoSize
+
+      - name: Abstand zu Upstream
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          # Ein Befund, kein Gate. Wenn Upstream weiter ist, soll das im Log
+          # stehen und jemand entscheiden - nicht dieser Lauf.
+          $pin = Get-Content gappa-pin.json -Raw | ConvertFrom-Json
+          try {
+            $tags = Invoke-RestMethod -UseBasicParsing -Uri `
+              "https://gitlab.inria.fr/api/v4/projects/gappa%2Fgappa/repository/tags?per_page=1"
+          } catch {
+            Write-Output "Upstream nicht erreichbar: $($_.Exception.Message)"
+            exit 0
+          }
+          $latest = $tags[0].name
+          Write-Output "gepinnt:  $($pin.upstream_tag)"
+          Write-Output "upstream: $latest ($($tags[0].commit.created_at.Substring(0,10)))"
+          if ($latest -ne $pin.upstream_tag) {
+            Write-Output "::warning::Upstream ist bei $latest, der Pin bei $($pin.upstream_tag). Eine Prover-Version aendert Verdikte - erst die devShell heben, dann den Pin."
+          } else {
+            Write-Output "gleichauf."
+          }
+
+      - name: In die Paketregistry
+        # WARUM PAKETREGISTRY UND NICHT RELEASE (entschieden 2026-09-13):
+        #
+        #   Eingaben, die wir per Hash pinnen und die ein Werkzeug aufloesen
+        #   muss  ->  Release. Dort liegt z3: pip holt die URL aus
+        #   requirements.txt, und der Pin benennt ein archiviertes FREMDES
+        #   Artefakt.
+        #
+        #   Ausgaben, die unsere CI selbst baut  ->  Paketregistry. Dort liegt
+        #   gappa-fuer-Windows, wie die zqel-Nightlies.
+        #
+        # Dazu zwei gemessene Gruende: ein Release legt einen git-Tag im Repo an
+        # (fremdes Werkzeug in unserer Historie), und es braucht ein Token mit
+        # Repo-Schreibrecht - PACKAGE_TOKEN hat nur `package`, die Releases-API
+        # antwortet ihm mit 403. Weniger Rechte fuer dieselbe Aufgabe.
+        shell: pwsh
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+        run: |
+          # KEINE Bedingung am Schritt - der Zweck bleibt, nur wird er sichtbar.
+          #
+          # Hier stand `if: ${{ env.PACKAGE_TOKEN != '' }}`. Die Absicht war
+          # richtig: ein Fork soll bauen duerfen, ohne veroeffentlichen zu
+          # koennen. Die Form war es nicht - fehlte das Geheimnis IRGENDWO,
+          # lief der Job gruen durch und veroeffentlichte nichts. Auf main ist
+          # das kein zulaessiger Fall, sondern ein Fehler.
+          if (-not $env:PACKAGE_TOKEN) {
+            Write-Host "PACKAGE_TOKEN ist nicht gesetzt - es wurde NICHTS veroeffentlicht."
+            $zweig = if ($env:GITHUB_REF_NAME) { $env:GITHUB_REF_NAME } else { "main" }
+            if ($zweig -eq "main") {
+              Write-Host "Auf main ist das ein Fehler, kein zulaessiger Fall."
+              exit 1
+            }
+            Write-Host "Auf '$zweig' ist das zulaessig - hier wird nicht veroeffentlicht."
+            exit 0
+          }
+          # Das Token darf NUR `package` - gemessen am 2026-09-13: die
+          # Releases-API antwortet ihm mit 403, der Paket-Upload mit 201.
+          $base = "https://git.ei.intern.hs-duesseldorf.de/api/packages/proto/generic/gappa/$env:GAPPA_VERSION"
+          $h = @{ Authorization = "token $env:PACKAGE_TOKEN" }
+          foreach ($f in (Get-ChildItem dist\gappa\* -File)) {
+            $uri = "$base/$($f.Name)"
+            try {
+              Invoke-WebRequest -Uri $uri -Method Put -Headers $h -InFile $f.FullName -UseBasicParsing | Out-Null
+              Write-Output "  neu:        $($f.Name)"
+            } catch {
+              $code = $_.Exception.Response.StatusCode.value__
+              if ($code -eq 409) {
+                # Derselbe Pin baut dasselbe Paket. Woechentlich neu
+                # hochladen hiesse, eine Aenderung zu behaupten, die es
+                # nicht gibt. Der Ertrag des Laufs war der Bau, nicht das Zip.
+                Write-Output "  unveraendert: $($f.Name) (schon veroeffentlicht)"
+              } else {
+                throw "Upload $($f.Name): HTTP $code"
+              }
+            }
+          }
+          Write-Output $base
+
+      # Nach dl.zqel.org - dem OEFFENTLICHEN Ablageort.
+      #
+      # Die forgejo-Registry loest auf 10.30.38.20 auf (gemessen 2026-09-13),
+      # ist also nur im HSD-Netz erreichbar. Ein Link aus der oeffentlichen
+      # Doku dorthin waere fuer jeden draussen tot. Deshalb beides: Registry
+      # intern, R2 oeffentlich. Gespiegelte Fremdartefakte gehen NICHT nach
+      # R2 - die gibt es bei ihren Upstreams schon oeffentlich, dorthin
+      # verlinkt die Doku.
+      - name: Nach dl.zqel.org
+      # KEINE Bedingung auf die Zugaenge - mit Absicht.
+      #
+      # Hier stand `if: ${{ env.R2_ID != '' }}`. Das machte aus einem lauten
+      # Fehlschlag ein stilles Ueberspringen: fehlten die Geheimnisse, lief
+      # der Job gruen durch und veroeffentlichte nichts. Genau die fail-open
+      # Stufe aus #210, nur an der Auslieferung statt an einem Verdikt.
+      #
+      # tools/publish_r2.py faellt selbst geschlossen aus - Exit 1 mit einem
+      # Satz, gemessen. Ein Lauf ohne Zugaenge SOLL rot sein.
+        shell: pwsh
+        env:
+          R2_ID: ${{ secrets.R2_ID }}
+          R2_SECRET: ${{ secrets.R2_SECRET }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+        run: |
+          $f = (Get-ChildItem dist\gappa\* -File | ForEach-Object { $_.FullName })
+          python tools\publish_r2.py --prefix "tools/gappa/$env:GAPPA_VERSION" @f
+          if ($LASTEXITCODE -ne 0) { throw "publish_r2 exit $LASTEXITCODE" }

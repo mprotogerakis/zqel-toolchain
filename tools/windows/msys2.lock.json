@@ -1,0 +1,71 @@
+{
+  "_comment": [
+    "Der MSYS2-Stand, auf dem die Windows-Pakete gebaut werden.",
+    "",
+    "Erzeugt mit: python tools/windows/msys2_lock.py write",
+    "Geprueft bei jedem Bau. Weicht eine Version ab, bricht er ab -",
+    "eine neue Baseline ist eine Entscheidung, kein Nebeneffekt.",
+    "",
+    "GRENZE: gesperrt sind die ausdruecklich installierten Pakete und",
+    "die Eigentuemer der ausgelieferten DLLs. Die vollstaendige",
+    "transitive Closure ist es nicht - siehe #323."
+  ],
+  "generated_on": "2026-09-13",
+  "packages": {
+    "autoconf": {
+      "version": "20260320-1",
+      "file": "",
+      "sha256": ""
+    },
+    "automake": {
+      "version": "20260320-1",
+      "file": "",
+      "sha256": ""
+    },
+    "bison": {
+      "version": "3.8.2-5",
+      "file": "bison-3.8.2-5-x86_64.pkg.tar.zst",
+      "sha256": "7439ca784a9909e0730a513d3aff15852c3b292ac85053fa2dd7a2a19c1ce04c"
+    },
+    "flex": {
+      "version": "2.6.4-4",
+      "file": "flex-2.6.4-4-x86_64.pkg.tar.zst",
+      "sha256": "d70fbf25d0dea3cb8ae42670b79a8ba65a48daa140137367b5ebaf37eb48df26"
+    },
+    "make": {
+      "version": "4.4.1-3",
+      "file": "make-4.4.1-3-x86_64.pkg.tar.zst",
+      "sha256": "af0bdba17f06fe037f0194069adaa31a8fe45f1a11381501896aea1fae37bd5d"
+    },
+    "mingw-w64-x86_64-boost": {
+      "version": "1.92.0-3",
+      "file": "mingw-w64-x86_64-boost-1.92.0-3-any.pkg.tar.zst",
+      "sha256": "8d5a7621778e955a52755940fe16ead78c0e57a2ff443418b43c25388df1ba2a"
+    },
+    "mingw-w64-x86_64-gcc": {
+      "version": "16.2.0-3",
+      "file": "mingw-w64-x86_64-gcc-16.2.0-3-any.pkg.tar.zst",
+      "sha256": "8b37c953ae12f3d8fa05c854236463231ea0a294dff423007cbd93d4d8089f9f"
+    },
+    "mingw-w64-x86_64-gcc-libs": {
+      "version": "16.2.0-3",
+      "file": "mingw-w64-x86_64-gcc-libs-16.2.0-3-any.pkg.tar.zst",
+      "sha256": "f8e25ea67bb796e7f65550f0dca9fce4cdde8aaa3dadafe4d13c6a8233c8de26"
+    },
+    "mingw-w64-x86_64-gmp": {
+      "version": "6.3.0-2",
+      "file": "mingw-w64-x86_64-gmp-6.3.0-2-any.pkg.tar.zst",
+      "sha256": "8924433974c4add46cb46ea4f6ef283b5c5139d3f552375115b5580f855015cc"
+    },
+    "mingw-w64-x86_64-libwinpthread": {
+      "version": "14.0.0.r375.g9c1abbbf5-1",
+      "file": "mingw-w64-x86_64-libwinpthread-14.0.0.r375.g9c1abbbf5-1-any.pkg.tar.zst",
+      "sha256": "1d0ed7fda332a5c879de210f3d72c75fa1f3df7cc63dd951e763dec8eb02c1ee"
+    },
+    "mingw-w64-x86_64-mpfr": {
+      "version": "4.2.2-3",
+      "file": "mingw-w64-x86_64-mpfr-4.2.2-3-any.pkg.tar.zst",
+      "sha256": "9ecbc05f1f855bc656a8f111d367f61fbd90dbbfcf469ba74d6d5dd1ec07a542"
+    }
+  }
+}

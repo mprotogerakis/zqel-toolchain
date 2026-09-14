@@ -88,3 +88,31 @@ def test_a_failed_lookup_is_loud_except_for_not_yet_published():
     stelle = stelle[:stelle.index("\ndef ")]
     assert "raise SystemExit" in stelle
     assert "e.code == 404" in stelle, "nur 'noch nicht da' darf leise sein"
+
+
+def test_every_package_in_the_flake_is_referenced_by_a_check():
+    """Ein Paket, das niemand baut, ist irgendwann kaputt, ohne dass es
+    auffaellt. Genau so war matiec beim Umzug einen Commit lang da.
+
+    Der erste Entwurf verlangte einen Rauchtest namens `<paket>-smoke`. Der
+    fuer creusot-free heisst creusot-smoke - meine Erwartung, nicht die
+    Wirklichkeit. Die REGEL ist "jedes Paket wird von etwas gebaut".
+    """
+    pakete = set(re.findall(r"^\s+([\w-]+) = \w+For system;", FLAKE, re.M))
+    assert pakete, "keine Pakete in flake.nix gefunden - Muster veraltet?"
+    pruefblock = FLAKE[FLAKE.index("checks = forAllSystems"):]
+    for name in pakete:
+        assert f"self.packages.${{system}}.{name}" in pruefblock, \
+            f"{name} wird von keiner Pruefung angefasst"
+
+
+def test_every_check_in_the_flake_is_actually_run_by_ci():
+    """Eine Pruefung, die nur in der Flake steht, prueft nichts."""
+    check = (ROOT / ".forgejo" / "workflows" / "check.yml").read_text(encoding="utf-8")
+    anweisungen = "\n".join(z for z in check.splitlines()
+                             if not z.lstrip().startswith("#"))
+    pruefblock = FLAKE[FLAKE.index("checks = forAllSystems"):]
+    pruefungen = set(re.findall(r"^\s+([\w-]+) = pkgs\.runCommand", pruefblock, re.M))
+    assert pruefungen, "keine Pruefungen gefunden - Muster veraltet?"
+    for name in pruefungen:
+        assert name in anweisungen, f"{name} wird von check.yml nie gebaut"
