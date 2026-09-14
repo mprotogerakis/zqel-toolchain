@@ -146,9 +146,13 @@ jobs:
       # Die forgejo-Registry loest auf 10.30.38.20 auf (gemessen 2026-09-13),
       # ist also nur im HSD-Netz erreichbar. Ein Link aus der oeffentlichen
       # Doku dorthin waere fuer jeden draussen tot. Deshalb beides: Registry
-      # intern, R2 oeffentlich. Gespiegelte Fremdartefakte gehen NICHT nach
-      # R2 - die gibt es bei ihren Upstreams schon oeffentlich, dorthin
-      # verlinkt die Doku.
+      # intern, R2 oeffentlich.
+      #
+      # KORREKTUR vom 2026-09-14: hier stand, gespiegelte Fremdartefakte
+      # gingen NICHT nach R2. Das war falsch - mirror-tools.yml legt sie seit
+      # jeher unter tools/<werkzeug>/<version>/ ab, und alle 13 antworten dort
+      # (gemessen, tools/write_download_table.py). Der Satz beschrieb eine
+      # Absicht, nicht den Bestand.
       - name: Nach dl.zqel.org
       # KEINE Bedingung auf die Zugaenge - mit Absicht.
       #

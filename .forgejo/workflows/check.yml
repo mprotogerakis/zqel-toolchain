@@ -52,3 +52,33 @@ jobs:
           set -eu
           artifact=$(python3 tools/pack_flake.py --out dist --print-name)
           nix flake metadata --json "tarball+file://$PWD/dist/$artifact" > /dev/null
+
+  # Die Download-Tabelle in der README gegen die Pins.
+  #
+  # ABSICHTLICH ein eigener, kurzer Job ohne nix: er braucht nur Python und
+  # eine Leitung nach draussen, laeuft in Sekunden und bleibt gruen, wenn der
+  # lange Creusot-Bau faellt. Umgekehrt soll eine vergessene Zeile in der
+  # Tabelle nicht 90 Minuten warten muessen, um aufzufallen.
+  #
+  # Geprueft wird die MENGE der zugesagten Adressen, nicht ihre Groesse -
+  # Groessen aendern sich rechtmaessig, und eine CI, die deshalb rot wird,
+  # bringt man allen nur bei zu ignorieren.
+  downloads:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout without an external action
+        run: |
+          set -eu
+          exec </dev/null
+          git init -q .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          git -c protocol.version=2 fetch -q --depth 1 origin "$GITHUB_SHA"
+          git --no-pager -c core.pager=cat checkout -q FETCH_HEAD
+          echo "  ausgecheckt: $(git --no-pager log -1 --format=%h%x20%s)"
+
+      - name: Nennt die README jede Adresse, die aus den Pins folgt?
+        run: |
+          set -eu
+          exec </dev/null
+          python3 tools/write_download_table.py --pruefen
