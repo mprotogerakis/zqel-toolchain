@@ -405,3 +405,24 @@ def test_that_check_would_notice_the_one_that_bit_us():
     assert re.search(r"(?<![\w.])" + re.escape("dt.UTC") + r"\b", probe)
     sauber = "now=dt.datetime.now(dt.timezone.utc),"
     assert not re.search(r"(?<![\w.])" + re.escape("dt.UTC") + r"\b", sauber)
+
+
+def test_the_nars_go_up_before_the_narinfos_that_promise_them():
+    """Ein narinfo ist ein Versprechen: "diesen Pfad habe ich, hol ihn dort".
+
+    Liegt es vor seinem NAR, verspricht der Cache waehrend des ganzen
+    Uploads etwas, das er nicht liefern kann - und bricht der Lauf
+    dazwischen ab, bleibt es dauerhaft so. Am 2026-09-14 waehrend des
+    Darwin-Laufs von aussen gemessen: narinfo 200, NAR 404.
+
+    Andersherum ist der Zwischenstand harmlos: ein NAR, auf das noch kein
+    narinfo zeigt, findet niemand.
+    """
+    quelle = (ROOT / "tools" / "publish_nix_cache.py").read_text(encoding="utf-8")
+    anweisungen = "\n".join(z for z in quelle.splitlines()
+                            if not z.lstrip().startswith("#"))
+    nar_upload = anweisungen.index('f"{PRAEFIX}/nar"')
+    info_upload = anweisungen.rindex('"--prefix", PRAEFIX')
+    assert nar_upload < info_upload, (
+        "die narinfos gehen vor ihren NARs hoch - der Cache verspricht dann "
+        "Pfade, die er nicht liefern kann")

@@ -161,9 +161,7 @@ $ nix shell "tarball+https://dl.zqel.org/flake/$HASH.tar.gz#creusot-free"
 $ cargo-creusot --help && why3find --version
 ```
 
-The Darwin half of the cache is not published yet — see *Open work* below — so
-expect the first run to compile. Once it is published this is the same few
-minutes as on Linux.
+Both halves of the cache are published, so this fetches rather than builds.
 
 ### Windows
 
@@ -208,11 +206,22 @@ prover runs on your machine. The private half exists only as a CI secret.
 
 ## Open work
 
-**No macOS runner.** Every job runs on `ubuntu-latest` or `windows-amd64`.
-The Darwin closure builds and is locally proven, but it cannot be *published*
-from the machine that builds it, because the credentials live in Forgejo and
-Forgejo has no Mac. Until a dedicated Apple Silicon runner exists, a laptop can
-join for the length of one job — see `scripts/attach_macos_runner.sh`.
+**The Darwin cache is published by hand.** Linux is filled automatically on
+every `publish-flake`; macOS needs someone to attach a Mac and trigger
+*Publish the Darwin binary cache*. It works — verified from outside the
+network on 2026-09-14: `cache.nixos.org` answers 404 for
+`creusot-wrapped`, this cache answers 200 with our signature, and the NAR is
+retrievable — but it does not happen on its own, so the Darwin half can fall
+behind the flake without anything going red.
+
+Until a dedicated Apple Silicon runner exists, `scripts/attach_macos_runner.sh`
+attaches a laptop for the length of one job. Four things only showed up there,
+because a **host runner has a terminal and a container does not**: `git` did
+not know the instance CA and `NIX_SSL_CERT_FILE` pointed at a Linux path;
+`git log` opened a pager and waited; `nix` asked whether to accept our own
+`nixConfig` and waited; and the runner's `PATH` had a Python 3.10 in front,
+where `datetime.UTC` does not exist. All four are fixed and pinned by tests —
+but they are the reason a real runner is worth more than a careful guess.
 
 **`toolchain-lock.json` is pending.** zqel needs a generated, content-addressed
 record binding a verdict to the toolchain artifact that produced it. Until it
