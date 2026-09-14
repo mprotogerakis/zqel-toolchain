@@ -1,143 +1,232 @@
 # zqel-toolchain
 
-Public, reproducible Nix packages for external verifier toolchains used by
-zqel. This repository carries compatibility packaging, not forks of the
-verifier sources.
+The verifiers zqel calls, packaged so that the same versions run on your
+machine as in the gate — and so that a verdict can name what produced it.
 
-## Creusot
+---
 
-The `creusot-free` output uses Creusot's official `v0.13.0` flake unchanged on
-`x86_64-linux`. On `aarch64-darwin` it retains the same source and toolchain
-pins while fixing the Nix build closure for why3find, CVC4, CVC5 and CoCoALib.
+## Why this repository exists
 
-Until the first content-addressed release has been published, use a checkout
-for evaluation:
+A proof is only as trustworthy as the prover that produced it. If your Debian
+ships Gappa 1.8.2 and the gate ran 1.4.0, the two of you are not checking the
+same thing — and nothing in the output says so. This repository fixes the
+verifiers by **pin**, builds them reproducibly, and publishes the results with
+their licences and their sources, so that "which prover?" always has an answer.
 
-```sh
-nix profile add .#creusot-free
-```
+Three things follow from that, and they shape everything below:
 
-Or use it without changing a profile:
+**A pin is an identity, not an update policy.** `main`, release tags and
+`latest.json` are navigation. A verdict must cite the content-addressed
+artifact — the SHA-256 URL — because that is the only name that cannot change
+under it.
 
-```sh
-nix shell .#creusot-free
-```
+**The newest version is rarely the right one.** Gappa 1.8.3 exists; we pin
+1.4.0 because that is what the development shell has. Moving the pin is a
+decision someone makes, not something that happens.
 
-From a checkout:
+**Redistribution carries obligations.** Every binary here travels with its
+licence text and a pointer to the exact source it was built from. That is the
+condition under which we may pass it on at all, not paperwork after the fact.
 
-```sh
-scripts/creusot.sh build
-scripts/creusot.sh smoke
-scripts/creusot.sh shell why3find --version
-```
+---
 
-Create the deterministic, SHA-256-named flake artifact with:
+## The tools
 
-```sh
-python3 tools/pack_flake.py
-```
+| Tool | Version | What it does | Source | Licence |
+|---|---|---|---|---|
+| **Creusot** | 0.13.0 | proves the generated Rust deductively | [creusot-rs/creusot](https://github.com/creusot-rs/creusot) | LGPL-2.1 |
+| **Why3** | git `54c92f9` | the proof platform Creusot talks to | [why3](https://why3.lri.fr/) | LGPL-2.1 |
+| **why3find** | 1.3.0+dev | drives Why3 across a project | via Creusot | LGPL-2.1 |
+| **Alt-Ergo** | 2.4.3-free | SMT solver for Why3 | [alt-ergo](https://alt-ergo.ocamlpro.com/) | Apache-2.0 |
+| **Z3** | 4.15.3 | SMT solver for Why3 | [Z3Prover/z3](https://github.com/Z3Prover/z3) | MIT |
+| **CVC5** | 1.3.1 · 1.2.0 mirrored | SMT solver | [cvc5/cvc5](https://github.com/cvc5/cvc5) | BSD-3-Clause |
+| **CVC4** | 1.8 | SMT solver Why3 still uses | [CVC4](https://cvc4.github.io/) | BSD-3-Clause |
+| **Gappa** | 1.4.0 | proves float64 rounding bounds | [gappa/gappa](https://gitlab.inria.fr/gappa/gappa) | CeCILL-2.1 **AND** GPL-3.0-or-later |
+| **matiec** | 0.1 rev `7949c0b` | re-checks generated ST on an independent toolchain | [beremiz/matiec](https://github.com/beremiz/matiec) | GPL-3.0-or-later AND LGPL-3.0-or-later |
+| **CBMC** | 6.4.0 | bounded model checking | [diffblue/cbmc](https://github.com/diffblue/cbmc) | BSD-4-Clause |
+| **Kani** | 0.67.0 | model-checks the generated Rust | [model-checking/kani](https://github.com/model-checking/kani) | Apache-2.0 **OR** MIT |
 
-There is deliberately no `v0.1.0` tag or remote Doctor recipe yet. `main`,
-release tags and `latest.json` are navigation, not proof identity. A verdict
-must cite the content-addressed tarball, and the Doctor recipe will be added
-only together with that published artifact and its generated lock record. See
-[`docs/MIGRATION.md`](docs/MIGRATION.md) for the staged move from the private
-repository and the pending `toolchain-lock.json` binding.
+Two notes that are easy to miss. matiec reports version `0.1` for *every*
+revision, so it is pinned by revision, not by version. And Z3 appears twice in
+zqel's world: 4.15.3 here for Why3, and a separately pinned build that travels
+*inside* the zqel package — that one is pinned by artifact hash, not version.
 
-Supported systems are `x86_64-linux` and `aarch64-darwin`. GitHub is the public
-source host and has Actions disabled. The internal Forgejo mirror builds and
-smoke-tests the Linux closure without exposing publication credentials. The
-Darwin closure is locally proven; a native Forgejo macOS runner is still open
-work.
+### Where each one runs
 
-## Binary cache
+| | Linux x86_64 | macOS arm64 | Windows x86_64 |
+|---|---|---|---|
+| Creusot, Why3, why3find, Alt-Ergo, CVC4 | Nix flake | Nix flake | builds, but Why3 is missing |
+| Gappa | Nix flake | Nix flake | [installer](https://dl.zqel.org/tools/gappa/1.4.0/gappa-1.4.0-win_amd64-setup.exe) · [zip](https://dl.zqel.org/tools/gappa/1.4.0/gappa-1.4.0-win_amd64.zip) · [source](https://dl.zqel.org/tools/gappa/1.4.0/gappa-1.4.0.tar.gz) |
+| matiec | Nix flake | Nix flake | [installer](https://dl.zqel.org/tools/matiec/0.1-7949c0b/matiec-0.1-7949c0b-win_amd64-setup.exe) · [zip](https://dl.zqel.org/tools/matiec/0.1-7949c0b/matiec-0.1-7949c0b-win_amd64.zip) · [source](https://dl.zqel.org/tools/matiec/0.1-7949c0b/matiec-7949c0b.tar.gz) |
+| CBMC | package manager | package manager | [msi](https://dl.zqel.org/tools/cbmc/6.4.0/cbmc-6.4.0-win64.msi) · [licence](https://dl.zqel.org/tools/cbmc/6.4.0/cbmc-6.4.0-LICENSE.txt) |
+| CVC5 (standalone) | via Creusot flake | via Creusot flake | [zip](https://dl.zqel.org/tools/cvc5/1.2.0/cvc5-Win64-x86_64-static.zip) |
+| Kani | [x86_64](https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-x86_64-unknown-linux-gnu.tar.gz) · [arm64](https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-aarch64-unknown-linux-gnu.tar.gz) | [x86_64](https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-x86_64-apple-darwin.tar.gz) · [arm64](https://dl.zqel.org/tools/kani/0.67.0/kani-0.67.0-aarch64-apple-darwin.tar.gz) | upstream refuses Windows |
 
-Without a cache, the first `nix shell` compiles the provers. Measured on the
-Darwin closure: of 157 store paths, 135 are already in `cache.nixos.org` and
-22 are not — and those 22 are exactly the expensive ones (CVC4, CVC5 1.3.1,
-cryptominisat, why3 at its git pin, why3find, alt-ergo, glpk, the Rust
-nightly chain).
+Every mirrored archive has a `.notice.txt` beside it naming the licence and
+the exact upstream release. **CBMC derives its machine model from the host**,
+so a Windows CBMC and a Linux CBMC do not answer the same question.
 
-This repository publishes a signed cache that carries **only that gap**;
-everything else still comes from upstream. The difference is what makes it
-affordable:
+---
+
+## The Nix flakes, and which is which
+
+There are two, and confusing them is the most common mistake.
+
+**This repository's flake** packages the *verifiers*. Its one output today is
+`creusot-free` — Creusot with Why3, why3find and the solvers, as one closure.
+On `x86_64-linux` it uses Creusot's own `v0.13.0` flake unchanged. On
+`aarch64-darwin` it keeps the same source and toolchain pins but repairs the
+build closure: `darwin.sigtool` for why3find (dune calls `codesign` when it
+links native OCaml executables), `<cstddef>` includes for CVC4, CLN swapped
+for GMP where the pinned Darwin CLN and CVC4 disagree about the C++ ABI, and a
+patched CoCoALib for CVC5.
+
+**zqel's own flake** is the development shell for working *on* zqel. It is a
+different thing at a different address and you usually do not want it.
+
+| | Address |
+|---|---|
+| this toolchain | `https://dl.zqel.org/flake/latest.json` → the SHA-256 URL |
+| binary cache | `https://dl.zqel.org/nix` |
+| zqel's dev shell | `https://dl.zqel.org/zqel/flake/latest.json` |
+
+### The binary cache, and the one line that decides whether you get it
+
+Without a cache the first run **compiles the provers**. Measured on the Darwin
+closure: 157 store paths, of which 135 are already in `cache.nixos.org` and 22
+are not — and those 22 are the expensive ones (CVC4, CVC5 1.3.1, cryptominisat,
+Why3 at its git pin, why3find, Alt-Ergo, glpk, the Rust nightly chain).
+
+This repository publishes a signed cache carrying **only that gap**; everything
+else still comes from upstream. That is what keeps it small:
 
 | | |
 |---|---|
 | whole closure | 3.36 GB |
 | the gap alone | 1.09 GB uncompressed, roughly 0.38 GB as xz |
 
-The flake declares the substituter itself, so `nix` will ask once whether to
-accept it. Answering no is a legitimate choice — you then build from source,
-which is slower but not broken. To configure it by hand instead:
+The flake declares the substituter itself — **but that only works if you are a
+trusted user.** Everyone else sees
 
 ```
+warning: ignoring untrusted flake configuration setting 'extra-substituters'
+```
+
+and builds from source anyway. On a default multi-user install `trusted-users`
+is `root` alone, so this is the normal case, not the exception. The installation
+steps below therefore configure the cache explicitly rather than relying on the
+flake to do it.
+
+---
+
+## Installing it
+
+### Linux (x86_64)
+
+```console
+$ sudo tee -a /etc/nix/nix.conf <<'EOF'
 extra-substituters = https://dl.zqel.org/nix
 extra-trusted-public-keys = dl.zqel.org-1:3a0HW0jbmoByRErCR1Oiixjklqib1uTQ2/yUXvBIrt4=
+EOF
+$ sudo systemctl restart nix-daemon
 ```
 
-A substituter you trust is load-bearing: whoever holds the key influences
-which prover runs on your machine. The private half exists only as a CI
-secret; nothing in this repository can sign.
+Then take the current pin and enter a shell with the verifiers on `PATH`:
 
-Check what the cache actually serves, from anywhere, without credentials:
-
-```sh
-python3 tools/verify_nix_cache.py .#packages.x86_64-linux.creusot-free
+```console
+$ HASH=$(curl -s https://dl.zqel.org/flake/latest.json | sed -n 's/.*"sha256": "\([^"]*\)".*/\1/p')
+$ nix shell "tarball+https://dl.zqel.org/flake/$HASH.tar.gz#creusot-free"
+$ cargo-creusot --help && why3 --version && z3 --version
 ```
 
-### What is not published yet, and why
+Cite `$HASH` when you record a verdict. `latest.json` tells you *which* pin is
+current; it is not itself an identity.
 
-Only the `x86_64-linux` half. The Darwin closure can be **built** on a Mac and
-is locally proven, but it cannot be **published** from one: R2 credentials
-exist solely as Forgejo secrets, and Forgejo has no macOS runner (12 jobs on
-`ubuntu-latest`, 3 on `windows-amd64`, none on macOS). So the one machine that
-can produce those bytes cannot upload them, and the one place that can upload
-cannot produce them.
+### macOS (Apple Silicon)
 
-### Publishing the Darwin half from a laptop
+Same cache configuration — macOS has no systemd, so the daemon is restarted
+through launchd:
 
-Until a dedicated Apple Silicon runner exists, a Mac can join Forgejo for the
-length of one job. That keeps the rule intact rather than bending it: the
-credentials still come from Forgejo, land on the machine only while the job
-runs, and are gone afterwards. A laptop holding standing credentials would be
-the worse trade.
-
-```sh
-FORGEJO_RUNNER_TOKEN=... scripts/attach_macos_runner.sh
+```console
+$ sudo tee -a /etc/nix/nix.conf <<'EOF'
+extra-substituters = https://dl.zqel.org/nix
+extra-trusted-public-keys = dl.zqel.org-1:3a0HW0jbmoByRErCR1Oiixjklqib1uTQ2/yUXvBIrt4=
+EOF
+$ sudo launchctl kickstart -k system/org.nixos.nix-daemon
 ```
 
-Then trigger **Publish the Darwin binary cache** in Forgejo, and stop the
-runner with Ctrl-C.
+```console
+$ HASH=$(curl -s https://dl.zqel.org/flake/latest.json | sed -n 's/.*"sha256": "\([^"]*\)".*/\1/p')
+$ nix shell "tarball+https://dl.zqel.org/flake/$HASH.tar.gz#creusot-free"
+$ cargo-creusot --help && why3find --version
+```
 
-What makes this workable:
+The Darwin half of the cache is not published yet — see *Open work* below — so
+expect the first run to compile. Once it is published this is the same few
+minutes as on Linux.
 
-- The runner only ever connects **outward** — it long-polls over HTTPS/2, the
-  server never calls back. No inbound port, no tunnel. Measured over the
-  university VPN on 2026-09-14: the runner RPC path answers `400`, not `404`,
-  so the route exists and only the payload was wrong.
-- It registers with the `:host` label, so the job runs directly on the machine
-  and uses its `/nix/store`. On a Mac that has already built `creusot-free`
-  this turns hours of compiling into minutes of copying. A container would see
-  an empty store and rebuild everything.
-- The job installs nothing. It looks for the machine's own `nix`, and if the
-  runner's account cannot see it, it says so and names the account — the
-  failure mode that cost two Windows nightlies was exactly this.
+### Windows
 
-What to weigh before starting it: a host runner executes jobs with the
-privileges of whoever started it, and the workflow is therefore
-`workflow_dispatch`-only. If the VPN drops mid-job the run dies; that is a
-retry, not damage, because the cache is content-addressed.
+There is no flake. Take the installers from the table above, then point zqel at
+matiec:
 
-## Upstreaming
+```powershell
+PS> setx MATIEC_DIR "C:\Program Files\matiec"
+```
 
-The compatibility changes belong upstream in Creusot's
-`nix/deps/why3find.nix`, `cvc4.nix` and `cvc5.nix`. This repository remains the
-stable installation source until a compatible tagged Creusot release contains
-them; it should then reduce to aliases of the upstream outputs.
+Kani does not run on Windows at all, and Creusot builds but has no Why3 there.
+For those two, use Linux.
 
-## License
+### Check what you actually got
 
-No repository license has been assigned yet. Choose one before inviting
-third-party contributions. Redistributed third-party tools additionally retain
-their own notices and corresponding source/provenance obligations.
+```console
+$ python3 tools/verify_nix_cache.py .#packages.x86_64-linux.creusot-free
+```
+
+This asks the public address, without credentials, whether every path we are
+supposed to carry is there and carries our signature. It runs from any machine
+with Python — including one that has never seen our network.
+
+---
+
+## For maintainers
+
+```console
+$ scripts/creusot.sh build      # build the closure
+$ scripts/creusot.sh smoke      # run the flake's own smoke check
+$ python3 tools/pack_flake.py   # the deterministic, SHA-256-named artifact
+```
+
+Publication happens on the internal Forgejo mirror, which holds the credentials;
+GitHub is the public source host and has Actions disabled. Nothing in this
+repository can sign or upload.
+
+A substituter you trust is load-bearing: whoever holds the key influences which
+prover runs on your machine. The private half exists only as a CI secret.
+
+---
+
+## Open work
+
+**No macOS runner.** Every job runs on `ubuntu-latest` or `windows-amd64`.
+The Darwin closure builds and is locally proven, but it cannot be *published*
+from the machine that builds it, because the credentials live in Forgejo and
+Forgejo has no Mac. Until a dedicated Apple Silicon runner exists, a laptop can
+join for the length of one job — see `scripts/attach_macos_runner.sh`.
+
+**`toolchain-lock.json` is pending.** zqel needs a generated, content-addressed
+record binding a verdict to the toolchain artifact that produced it. Until it
+exists, the binding is by convention rather than by check.
+
+**Upstreaming.** The Darwin compatibility changes belong in Creusot's
+`nix/deps/why3find.nix`, `cvc4.nix` and `cvc5.nix`. This repository should
+shrink to aliases of the upstream outputs once a tagged Creusot release carries
+them.
+
+---
+
+## Licence
+
+No repository licence has been assigned yet — choose one before inviting
+outside contributions. Redistributed third-party tools keep their own notices
+and their source-and-provenance obligations regardless.
