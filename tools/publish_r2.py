@@ -76,7 +76,12 @@ def put(file: pathlib.Path, *, bucket: str, key: str, endpoint: str,
     headers = authorization(
         method="PUT", host=host, path=path, payload_hash=payload_hash,
         key_id=key_id, secret=secret, region="auto", service="s3",
-        now=dt.datetime.now(dt.UTC),
+        # dt.timezone.utc, NICHT dt.UTC: letzteres gibt es erst ab
+        # Python 3.11. Der Darwin-Lauf am 2026-09-14 starb daran, weil im
+        # PATH des Runners ein 3.10 aus /Library/Frameworks vorn stand -
+        # nach 314 MB fertig gepacktem und signiertem Cache, unmittelbar
+        # vor dem Hochladen.
+        now=dt.datetime.now(dt.timezone.utc),
         extra={"content-type": _content_type(file.name),
                "x-amz-content-sha256": payload_hash})
     request = urllib.request.Request(

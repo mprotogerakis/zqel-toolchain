@@ -370,3 +370,38 @@ def test_no_step_on_the_host_runner_can_stop_and_ask():
         if "exec </dev/null" not in b:
             ohne.append(b.splitlines()[0].strip())
     assert not ohne, "diese Schritte koennen auf einem Terminal haengen:\n  " + "\n  ".join(ohne)
+
+
+#: Was es erst ab Python 3.11 gibt. Die Werkzeuge hier laufen auf dem Python,
+#: das eine fremde Maschine gerade hat - nicht auf dem, das wir uns wuenschen.
+NUR_AB_3_11 = ("datetime.UTC", "dt.UTC", "tomllib")
+
+
+def test_the_tools_run_on_the_python_a_machine_happens_to_have():
+    """Der Darwin-Lauf starb an `datetime.UTC` - erst ab 3.11.
+
+    Und zwar NACH 314,6 MB fertig gepacktem und signiertem Cache,
+    unmittelbar vor dem Hochladen. Im PATH des Runners stand ein 3.10 aus
+    /Library/Frameworks vorn, waehrend im Terminal ein 3.12 lag - die
+    Fassung, mit der man selbst prueft, ist nicht die, mit der es laeuft.
+    """
+    import re
+    schlecht = []
+    for datei in sorted((ROOT / "tools").glob("*.py")):
+        text = datei.read_text(encoding="utf-8")
+        anweisungen = "\n".join(z for z in text.splitlines()
+                                 if not z.lstrip().startswith("#"))
+        for name in NUR_AB_3_11:
+            if re.search(r"(?<![\w.])" + re.escape(name) + r"\b", anweisungen):
+                schlecht.append(f"{datei.name}: {name}")
+    assert not schlecht, (
+        "diese Werkzeuge verlangen Python 3.11+:\n  " + "\n  ".join(schlecht))
+
+
+def test_that_check_would_notice_the_one_that_bit_us():
+    """Der Nenner: genau die Form, an der es gescheitert ist."""
+    import re
+    probe = "now=dt.datetime.now(dt.UTC),"
+    assert re.search(r"(?<![\w.])" + re.escape("dt.UTC") + r"\b", probe)
+    sauber = "now=dt.datetime.now(dt.timezone.utc),"
+    assert not re.search(r"(?<![\w.])" + re.escape("dt.UTC") + r"\b", sauber)
