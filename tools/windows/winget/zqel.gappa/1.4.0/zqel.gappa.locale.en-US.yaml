@@ -1,0 +1,19 @@
+# Erzeugt von tools/windows/write_winget_manifest.py - nicht von Hand pflegen.
+PackageIdentifier: zqel.gappa
+PackageVersion: 1.4.0
+PackageLocale: en-US
+Publisher: Gappa project (INRIA)
+PublisherUrl: https://gitlab.inria.fr/gappa/gappa
+PackageName: gappa
+PackageUrl: https://github.com/mprotogerakis/zqel-toolchain
+License: CECILL-2.1 AND GPL-3.0-or-later
+LicenseUrl: https://gitlab.inria.fr/gappa/gappa/-/blob/gappa-1.4.0/COPYING
+ShortDescription: gappa 1.4.0 for Windows x86_64, built from the pinned upstream source.
+Description: >-
+  Built by the zqel toolchain from https://gappa.gitlabpages.inria.fr/releases/gappa-1.4.0.tar.gz
+  (sha256 6bf17688f0d0d0815713f3c3ad56774727ac516c38ab5b1b2d20df00d217a48b), so that the same version of this tool
+  runs on Windows as in the verification gate. The installer carries
+  its licence texts, a provenance record and the source tarball it was
+  compiled from (gappa-1.4.0.tar.gz).
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

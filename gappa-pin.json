@@ -25,6 +25,8 @@
     "WARUM UEBERHAUPT SELBST BAUEN: weil es nichts Fertiges gibt. Gemessen am 2026-09-13 kennt MSYS2 15725 Pakete und kein gappa; Upstream veroeffentlicht nur Quell-Tarballs, keine Windows-Binaerdateien. Bei cvc5 und cbmc liegt das anders - dort gibt es fertige Windows-Artefakte, und zwar in genau den Versionen, die auch die devShell fuehrt."
   ],
   "upstream_project": "https://gitlab.inria.fr/gappa/gappa",
+  "upstream_publisher": "Gappa project (INRIA)",
+  "_why_publisher": "Wer das WERKZEUG herausgibt - nicht wer es paketiert. Chocolatey trennt authors und owners, winget verlangt Publisher; in beiden Feldern uns einzutragen waere eine Anmassung. Bewusst auf Projektebene und ohne Personennamen: das ist nachpruefbar, eine Autorenliste waere es mit der naechsten Revision nicht mehr.",
   "version": "1.4.0",
   "upstream_tag": "gappa-1.4.0",
   "checked_on": "2026-09-13",

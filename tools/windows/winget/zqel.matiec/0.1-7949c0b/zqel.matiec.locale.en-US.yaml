@@ -1,0 +1,19 @@
+# Erzeugt von tools/windows/write_winget_manifest.py - nicht von Hand pflegen.
+PackageIdentifier: zqel.matiec
+PackageVersion: 0.1-7949c0b
+PackageLocale: en-US
+Publisher: matiec project (beremiz)
+PublisherUrl: https://github.com/beremiz/matiec
+PackageName: matiec
+PackageUrl: https://github.com/mprotogerakis/zqel-toolchain
+License: GPL-3.0-or-later AND LGPL-3.0-or-later
+LicenseUrl: https://github.com/beremiz/matiec/blob/7949c0bda1787de9c7cacaa4876ede49f85262dd/COPYING
+ShortDescription: matiec 0.1-7949c0b for Windows x86_64, built from the pinned upstream source.
+Description: >-
+  Built by the zqel toolchain from https://github.com/beremiz/matiec/archive/7949c0bda1787de9c7cacaa4876ede49f85262dd.tar.gz
+  (sha256 e99d845747f3a53b0d052e511a8d43da3f253b5ea89fb5f355567520d183c68b), so that the same version of this tool
+  runs on Windows as in the verification gate. The installer carries
+  its licence texts, a provenance record and the source tarball it was
+  compiled from (matiec-7949c0b.tar.gz).
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

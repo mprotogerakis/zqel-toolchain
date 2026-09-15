@@ -1,0 +1,6 @@
+# Erzeugt von tools/windows/write_winget_manifest.py - nicht von Hand pflegen.
+PackageIdentifier: zqel.matiec
+PackageVersion: 0.1-7949c0b
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: 1.6.0

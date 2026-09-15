@@ -23,6 +23,8 @@
     "zweite Laufzeit mit eigenen Weitergaberegeln."
   ],
   "upstream_project": "https://github.com/beremiz/matiec",
+  "upstream_publisher": "matiec project (beremiz)",
+  "_why_publisher": "Wer das WERKZEUG herausgibt - nicht wer es paketiert. Chocolatey trennt authors und owners, winget verlangt Publisher; in beiden Feldern uns einzutragen waere eine Anmassung. Bewusst auf Projektebene und ohne Personennamen: das ist nachpruefbar, eine Autorenliste waere es mit der naechsten Revision nicht mehr.",
   "version": "0.1",
   "_why_version_and_revision": "matiec meldet seit Jahren `matiec version 0.1` - AC_INIT([matiec], [0.1]) in configure.ac, unveraendert ueber alle Revisionen. Die Version allein benennt ein Paket also NICHT eindeutig: zwei verschiedene Bauten lagen unter derselben Paketversion, und der Upload-Pfad haette den zweiten mit 409 als 'unveraendert' abgetan. Deshalb Version zuerst und die Revision dahinter: matiec-0.1-7949c0b-win_amd64.",
   "revision": "7949c0bda1787de9c7cacaa4876ede49f85262dd",

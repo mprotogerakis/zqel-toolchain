@@ -207,7 +207,7 @@ def choco_nuspec(pin: dict, werkzeug: str) -> str:
         # Der Autor ist UPSTREAM, nicht wir - wir paketieren nur. Chocolatey
         # trennt das in authors und owners, und die Verwechslung waere eine
         # Anmassung.
-        upstream_autor=escape(pin["upstream_project"]),
+        upstream_autor=escape(pin["upstream_publisher"]),
         upstream=escape(pin["upstream_project"]),
         projekt=PROJEKT,
         lizenz_url=escape(bau["tool_licence"]["url"]),

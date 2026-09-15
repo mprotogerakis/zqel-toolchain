@@ -1,0 +1,11 @@
+# Erzeugt von tools/windows/write_winget_manifest.py - nicht von Hand pflegen.
+PackageIdentifier: zqel.gappa
+PackageVersion: 1.4.0
+InstallerLocale: en-US
+InstallerType: inno
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://dl.zqel.org/tools/gappa/1.4.0/gappa-1.4.0-win_amd64-setup.exe
+    InstallerSha256: 2C897FEA7B5B19C54010BE23ED01EBCF124EF7CBAB3E000B817FAE1D15A9CE30
+ManifestType: installer
+ManifestVersion: 1.6.0

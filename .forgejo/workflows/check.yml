@@ -82,3 +82,15 @@ jobs:
           set -eu
           exec </dev/null
           python3 tools/write_download_table.py --pruefen
+
+      # Dieselbe Frage fuer winget (#19), nur andersherum: das Manifest nennt
+      # eine Adresse und einen Hash, die auf FREMDEN Rechnern ausgefuehrt
+      # werden. Geprueft wird deshalb gegen das, was oeffentlich wirklich
+      # liegt - die .sha256-Beilage neben dem Installer -, nicht gegen eine
+      # gepflegte Zahl im Manifest.
+      - name: Sagen die winget-Manifeste, was oeffentlich ausgeliefert wird?
+        run: |
+          set -eu
+          exec </dev/null
+          python3 tools/windows/write_winget_manifest.py --pin gappa-pin.json --pruefen
+          python3 tools/windows/write_winget_manifest.py --pin matiec-pin.json --pruefen
