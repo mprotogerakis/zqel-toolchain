@@ -40,12 +40,26 @@ jobs:
         run: |
           set -eu
           exec </dev/null
+          # Die Dauer wird GEMESSEN und genannt, wie in den Windows-Fahrten.
+          #
+          # Warum das hier steht: am 2026-09-15 fiel auf, dass dieser Job -
+          # `timeout-minutes: 90`, vollstaendige Creusot-Schliessung - in 10
+          # bis 30 Sekunden fertig ist. Der Log erklaert es (kein einziges
+          # `building '/nix/store/...'`: der Store des Runners ist warm), aber
+          # das musste jemand nachlesen. Ein Gate, dessen normale Dauer
+          # niemand kennt, faellt nicht auf, wenn es sie verliert - weder
+          # nach oben noch nach unten.
+          start=$SECONDS
           nix build -L .#checks.x86_64-linux.creusot-smoke
           # matiec gehoert seit dem 2026-09-14 dazu. Ohne diese Zeile stuende
           # es zwar in der Flake, wuerde aber von nichts gebaut - und ein
           # Paket, das niemand baut, ist irgendwann kaputt, ohne dass es
           # auffaellt.
           nix build -L .#checks.x86_64-linux.matiec-smoke
+          echo "  Dauer_s: $((SECONDS - start))"
+          echo "  (Sekunden statt Minuten heisst: der Store war warm und nix"
+          echo "   hat nur ausgewertet. Ein kalter Runner braucht hier"
+          echo "   Groessenordnungen mehr - dafuer steht die 90-Minuten-Grenze.)"
 
       - name: The content-addressed flake evaluates outside the checkout
         run: |
