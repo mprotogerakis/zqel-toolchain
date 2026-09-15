@@ -93,67 +93,27 @@ jobs:
             Write-Output "gleichauf."
           }
 
-      - name: In die Paketregistry
-        # WARUM PAKETREGISTRY UND NICHT RELEASE (entschieden 2026-09-13):
-        #
-        #   Eingaben, die wir per Hash pinnen und die ein Werkzeug aufloesen
-        #   muss  ->  Release. Dort liegt z3: pip holt die URL aus
-        #   requirements.txt, und der Pin benennt ein archiviertes FREMDES
-        #   Artefakt.
-        #
-        #   Ausgaben, die unsere CI selbst baut  ->  Paketregistry. Dort liegt
-        #   gappa-fuer-Windows, wie die zqel-Nightlies.
-        #
-        # Dazu zwei gemessene Gruende: ein Release legt einen git-Tag im Repo an
-        # (fremdes Werkzeug in unserer Historie), und es braucht ein Token mit
-        # Repo-Schreibrecht - PACKAGE_TOKEN hat nur `package`, die Releases-API
-        # antwortet ihm mit 403. Weniger Rechte fuer dieselbe Aufgabe.
-        shell: pwsh
-        env:
-          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-        run: |
-          # KEINE Bedingung am Schritt - der Zweck bleibt, nur wird er sichtbar.
-          #
-          # Hier stand `if: ${{ env.PACKAGE_TOKEN != '' }}`. Die Absicht war
-          # richtig: ein Fork soll bauen duerfen, ohne veroeffentlichen zu
-          # koennen. Die Form war es nicht - fehlte das Geheimnis IRGENDWO,
-          # lief der Job gruen durch und veroeffentlichte nichts. Auf main ist
-          # das kein zulaessiger Fall, sondern ein Fehler.
-          if (-not $env:PACKAGE_TOKEN) {
-            Write-Host "PACKAGE_TOKEN ist nicht gesetzt - es wurde NICHTS veroeffentlicht."
-            $zweig = if ($env:GITHUB_REF_NAME) { $env:GITHUB_REF_NAME } else { "main" }
-            if ($zweig -eq "main") {
-              Write-Host "Auf main ist das ein Fehler, kein zulaessiger Fall."
-              exit 1
-            }
-            Write-Host "Auf '$zweig' ist das zulaessig - hier wird nicht veroeffentlicht."
-            exit 0
-          }
-          # Das Token darf NUR `package` - gemessen am 2026-09-13: die
-          # Releases-API antwortet ihm mit 403, der Paket-Upload mit 201.
-          $base = "https://git.ei.intern.hs-duesseldorf.de/api/packages/proto/generic/gappa/$env:GAPPA_VERSION"
-          $h = @{ Authorization = "token $env:PACKAGE_TOKEN" }
-          foreach ($f in (Get-ChildItem dist\gappa\* -File)) {
-            $uri = "$base/$($f.Name)"
-            try {
-              Invoke-WebRequest -Uri $uri -Method Put -Headers $h -InFile $f.FullName -UseBasicParsing | Out-Null
-              Write-Output "  neu:        $($f.Name)"
-            } catch {
-              $code = $_.Exception.Response.StatusCode.value__
-              if ($code -eq 409) {
-                # Derselbe Pin baut dasselbe Paket. Woechentlich neu
-                # hochladen hiesse, eine Aenderung zu behaupten, die es
-                # nicht gibt. Der Ertrag des Laufs war der Bau, nicht das Zip.
-                Write-Output "  unveraendert: $($f.Name) (schon veroeffentlicht)"
-              } else {
-                throw "Upload $($f.Name): HTTP $code"
-              }
-            }
-          }
-          Write-Output $base
-
       - name: In die NuGet-Registry
-        # WARUM EIN ZWEITER UPLOAD UND NICHT EINFACH MIT IN DIE GENERISCHE:
+        # WARUM PAKETREGISTRY UND NICHT RELEASE (entschieden 2026-09-13):
+        # Ein Release legt einen git-Tag im Repo an - fremdes Werkzeug in
+        # unserer Historie - und braucht ein Token mit Repo-Schreibrecht.
+        # PACKAGE_TOKEN darf nur `package`; gemessen am 2026-09-13 antwortet
+        # ihm die Releases-API mit 403, der Paket-Upload mit 201. Weniger
+        # Rechte fuer dieselbe Aufgabe.
+        #
+        # WARUM HIER KEINE ZWEITE KOPIE DER DATEIEN MEHR LIEGT (2026-09-15):
+        # Bis heute lud dieser Job Zip, Installer, Quelle und die
+        # sha256-Beilagen zusaetzlich in die GENERISCHE Registry. Das war
+        # eine zweite Wahrheit neben dl.zqel.org - und sie ist auseinander-
+        # gelaufen: die Registry verbucht einen zweiten Upload als 409 und
+        # behaelt die erste Fassung, R2 ueberschrieb still. Nach zwei Laeufen
+        # lieferten beide unter demselben Namen verschiedene Dateien aus
+        # (#33). Eine Zusage, zwei Adressen, zwei Antworten.
+        #
+        # R2 ist die Wahrheit - dorthin zeigt die oeffentliche Doku, und seit
+        # #33 bleibt dort liegen, was einmal liegt. Die Registry traegt nur
+        # noch das, was R2 NICHT kann: einen Feed, aus dem ein Werkzeug
+        # aufloest.
         # Ein .nupkg unter einer generischen Adresse ist eine Datei zum
         # Herunterladen - dafuer gibt es das Zip laengst. Erst der
         # NuGet-Endpunkt macht daraus eine QUELLE, aus der eine Kette
@@ -180,12 +140,20 @@ jobs:
         env:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         run: |
-          # Kein stilles Ueberspringen, aber auch kein zweites Urteil: der
-          # Schritt davor hat ein fehlendes Token schon beurteilt und bricht
-          # auf main ab. Wer ohne Token bis hierher kommt, ist auf einem
-          # Zweig, der nicht veroeffentlichen darf.
+          # KEINE Bedingung am Schritt - der Zweck bleibt, nur wird er
+          # sichtbar. Bis zum 2026-09-15 stand das Urteil im Schritt davor
+          # ("In die Paketregistry"), der mit #33 entfallen ist; ohne diese
+          # Zeilen waere daraus ein stilles Ueberspringen geworden - ein Lauf,
+          # der gruen durchlaeuft und nichts veroeffentlicht. Auf main ist das
+          # kein zulaessiger Fall, sondern ein Fehler.
           if (-not $env:PACKAGE_TOKEN) {
-            Write-Host "kein PACKAGE_TOKEN - kein NuGet-Upload (siehe Schritt davor)"
+            Write-Host "PACKAGE_TOKEN ist nicht gesetzt - es wurde NICHTS veroeffentlicht."
+            $zweig = if ($env:GITHUB_REF_NAME) { $env:GITHUB_REF_NAME } else { "main" }
+            if ($zweig -eq "main") {
+              Write-Host "Auf main ist das ein Fehler, kein zulaessiger Fall."
+              exit 1
+            }
+            Write-Host "Auf '$zweig' ist das zulaessig - hier wird nicht veroeffentlicht."
             exit 0
           }
           $nupkg = Get-ChildItem dist\gappa-nuget\*.nupkg | Select-Object -First 1
