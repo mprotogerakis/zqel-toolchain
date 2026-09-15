@@ -253,6 +253,13 @@ jobs:
             if ($code -eq 409) {
               Write-Output "  unveraendert: $($nupkg.Name) (diese Version liegt dort schon)"
             } else {
+              # Den KOERPER mitnehmen, nicht nur die Zahl. Am 2026-09-15
+              # stand hier "HTTP 500" und sonst nichts; die Ursache
+              # (fehlende OPC-Teile im Paket) liess sich nur durch Vergleich
+              # mit einem echten Chocolatey-Paket finden. Eine Fehlermeldung,
+              # die den Grund verschweigt, kostet eine Fahrt.
+              $grund = $_.ErrorDetails.Message
+              if ($grund) { Write-Output "  Antwort: $grund" }
               throw "Chocolatey-Upload $($nupkg.Name): HTTP $code"
             }
           }
