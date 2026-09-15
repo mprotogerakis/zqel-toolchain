@@ -355,15 +355,35 @@ def test_the_weekly_run_reports_upstream_but_does_not_bump(tool):
 
 @pytest.mark.parametrize("tool", _NAMES)
 def test_the_artifact_goes_to_the_registry_not_to_a_release(tool):
-    """Die Linie, die z3 und diese Pakete auseinanderhaelt: was wir per Hash
-    PINNEN und ein Werkzeug aufloesen muss, liegt als Release (z3, aus
-    requirements.txt geholt); was unsere CI selbst BAUT, liegt in der
-    Paketregistry. Ein Release legte zudem einen git-Tag fuer ein fremdes
-    Werkzeug in unsere Historie."""
+    """Kein Release - und seit dem 2026-09-15 auch keine zweite Kopie.
+
+    Die urspruengliche Linie bleibt: was wir per Hash PINNEN und ein Werkzeug
+    aufloesen muss, liegt als Release (z3, aus requirements.txt geholt); was
+    unsere CI selbst BAUT, geht nicht diesen Weg. Ein Release legte zudem
+    einen git-Tag fuer ein fremdes Werkzeug in unsere Historie.
+
+    Was sich geaendert hat, ist die andere Haelfte. Bis heute lagen Zip,
+    Installer und Quelle ZUSAETZLICH in der generischen Paketregistry. Das
+    war eine zweite Wahrheit neben dl.zqel.org, und sie ist auseinander-
+    gelaufen: gemessen am 2026-09-15 lieferten beide unter demselben Namen
+    verschiedene Dateien aus (#33) - die Registry verbucht einen zweiten
+    Upload als 409 und behaelt die erste Fassung, R2 ueberschrieb still.
+
+    R2 ist die Wahrheit. Die Registry traegt nur noch, was R2 nicht kann:
+    einen Feed, aus dem ein Werkzeug aufloest.
+    """
     text = _wf(tool)
-    assert "PACKAGE_TOKEN != ''" in text
     assert "RELEASE_TOKEN" not in text, "kein toter Pfad: die Entscheidung ist gefallen"
-    assert f"api/packages/proto/generic/{tool}" in text
+    assert "api/packages/proto/nuget" in text, "der Feed gehoert hierher"
+    assert "api/packages/proto/generic" not in text, \
+        "keine zweite Kopie der Dateien - dafuer ist dl.zqel.org da (#33)"
+    assert "publish_r2.py" in text, "veroeffentlicht wird nach R2"
+
+    # Und die Wache bleibt scharf: bis zum 2026-09-15 stand das Urteil ueber
+    # ein fehlendes PACKAGE_TOKEN im Schritt "In die Paketregistry". Der ist
+    # entfallen; ohne diese Forderung waere daraus ein stilles Ueberspringen
+    # geworden - ein Lauf, der gruen durchlaeuft und nichts veroeffentlicht.
+    assert "Auf main ist das ein Fehler" in text and "exit 1" in text
 
 
 def test_no_publishing_step_reddens_on_a_second_run():
