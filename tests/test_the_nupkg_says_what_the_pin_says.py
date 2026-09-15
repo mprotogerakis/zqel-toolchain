@@ -16,6 +16,8 @@ import sys
 import xml.etree.ElementTree as ET
 import zipfile
 
+import pytest
+
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "tools" / "windows"))
 
 import pack_nupkg  # noqa: E402
@@ -24,13 +26,15 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 def _stage(tmp_path: pathlib.Path) -> pathlib.Path:
-    """Ein Stage-Verzeichnis, wie win_package.ps1 es hinterlaesst."""
+    """Ein dist-Verzeichnis, wie New-ToolPackage es hinterlaesst: das Stage
+    und daneben der Quell-Tarball."""
     stage = tmp_path / "stage"
     (stage / "licenses" / "tool").mkdir(parents=True)
     (stage / "gappa.exe").write_bytes(b"MZ")
     (stage / "NOTICE.txt").write_text("Lizenzen")
     (stage / "COPYING").write_text("CeCILL")           # ohne Endung
     (stage / "licenses" / "tool" / "COPYING.GPL").write_text("GPL")
+    (tmp_path / "gappa-1.4.0.tar.gz").write_bytes(b"\x1f\x8b Quelle")
     return stage
 
 
@@ -66,6 +70,26 @@ def test_das_paket_traegt_jede_datei_und_die_lizenzkennung(tmp_path):
     # das Paket fuer einen strengen OPC-Leser unvollstaendig.
     assert 'PartName="/tools/COPYING"' in typen
     assert 'Extension="exe"' in typen
+
+
+def test_die_quelle_faehrt_mit_und_ihr_fehlen_ist_laut(tmp_path):
+    """Der Quelltext gehoert ins Paket, nicht nur in einen Verweis.
+
+    Formal genuegte der Verweis (GPL-3.0 §6(d)). Aber SOURCES.txt sagt IM
+    Paket "Dieselbe Quelle liegt in derselben Paketversion neben diesem
+    Paket" - ohne Tarball behauptet ein Lizenzdokument etwas Falsches ueber
+    das Paket, in dem es liegt.
+    """
+    stage = _stage(tmp_path)
+    nupkg = pack_nupkg.packe(ROOT / "gappa-pin.json", stage, tmp_path / "out")
+    with zipfile.ZipFile(nupkg) as z:
+        assert "tools/source/gappa-1.4.0.tar.gz" in z.namelist()
+
+    # Und wenn sie fehlt, faellt der Packer - statt ein Paket auszuliefern,
+    # das seine eigene Zusage bricht.
+    (tmp_path / "gappa-1.4.0.tar.gz").unlink()
+    with pytest.raises(SystemExit):
+        pack_nupkg.packe(ROOT / "gappa-pin.json", stage, tmp_path / "ohne")
 
 
 def test_derselbe_stand_ergibt_dieselben_bytes(tmp_path):

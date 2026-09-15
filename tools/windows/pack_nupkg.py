@@ -92,9 +92,10 @@ def nuspec(pin: dict, werkzeug: str) -> str:
         f"{quelle[1]['url']} (sha256 {quelle[1]['sha256']}). "
         f"Lizenz: {spdx}. Die Lizenztexte, der Herkunftsnachweis und der "
         f"gepinnte Stand liegen im Paket unter tools/ (NOTICE.txt, "
-        f"SOURCES.txt, PIN.txt, licenses/). Die Binaerdatei liegt unter "
-        f"tools/ - das Paket traegt keinen .NET-Code und wird nicht "
-        f"referenziert, sondern ausgepackt."
+        f"SOURCES.txt, PIN.txt, licenses/), der uebersetzte Quelltext unter "
+        f"tools/source/. Die Binaerdatei liegt unter tools/ - das Paket "
+        f"traegt keinen .NET-Code und wird nicht referenziert, sondern "
+        f"ausgepackt."
     )
     return NUSPEC.format(
         id=paket_id(werkzeug),
@@ -150,6 +151,28 @@ def packe(pin_pfad: pathlib.Path, stage: pathlib.Path,
     # mitbringt statt Bibliotheken. lib/ waere .NET-Code, und den gibt es hier
     # nicht.
     im_paket = {f"tools/{p.relative_to(stage).as_posix()}": p for p in dateien}
+
+    # UND DIE QUELLE. Sie ist keine Beigabe: gappa steht unter CeCILL und
+    # GPL-3.0, matiec unter GPL-3.0 - wer ein selbst gebautes Binary
+    # weitergibt, schuldet den dazugehoerigen Quelltext.
+    #
+    # Formal genuegte der Verweis: GPL-3.0 §6(d) erlaubt die Quelle auf einem
+    # anderen Server, solange beim Binary steht, wo sie liegt - und das steht
+    # in SOURCES.txt. Der Grund, sie trotzdem einzupacken, ist ein anderer:
+    # SOURCES.txt sagt woertlich "Dieselbe Quelle liegt in derselben
+    # Paketversion neben diesem Paket". Im Zip stimmt das (New-ToolPackage
+    # legt sie daneben), im .nupkg stimmte es nicht. Ein Lizenzdokument, das
+    # im Paket etwas Falsches ueber dieses Paket behauptet, ist schlimmer als
+    # ein paar hundert Kilobyte - gemessen 388 KB bei gappa, 713 KB bei
+    # matiec, neben 6,6 MB Binary.
+    for name in sorted(pin["source"]):
+        quelle = stage.parent / name
+        if not quelle.is_file():
+            raise SystemExit(
+                f"Der Quell-Tarball {name} liegt nicht in {stage.parent} - "
+                "ohne ihn behauptet SOURCES.txt im Paket etwas Falsches. "
+                "Er entsteht in New-ToolPackage; erst bauen, dann packen.")
+        im_paket[f"tools/source/{name}"] = quelle
     ziel = out / f"{paket_id(werkzeug)}.{paketversion(pin)}.nupkg"
     out.mkdir(parents=True, exist_ok=True)
 

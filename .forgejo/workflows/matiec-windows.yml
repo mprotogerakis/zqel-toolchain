@@ -167,6 +167,13 @@ jobs:
         # `-Form` gibt es erst ab PowerShell 6; diese Schritte laufen unter
         # pwsh (7), die Bauskripte unter Windows PowerShell 5.1. Deshalb steht
         # der Upload hier und nicht im Bauskript.
+        #
+        # Der Weg ist gemessen - aber mit gappa (2026-09-15, Job 3831): der
+        # Endpunkt nimmt multipart an, das Paket ist danach von aussen
+        # auflösbar. Hier ist es derselbe Aufruf mit einem anderen Paket;
+        # die erste Fahrt dieses Workflows ist die Gegenprobe. Der eine
+        # Unterschied, den sie prueft, ist die Vorabversion: forgejo muss
+        # `0.1.0-rev7949c0b` als SemVer annehmen.
         shell: pwsh
         env:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
