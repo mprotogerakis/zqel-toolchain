@@ -73,11 +73,36 @@ cache_eintragen() {
     echo "extra-trusted-public-keys = $schluessel"
   } >> "$ziel"
 }
-cache_eintragen "$HOME/.config/nix/nix.conf"
-# Im Container laeuft der Job als root, und dann zaehlt fuer den Daemon die
-# systemweite Datei. Als Nicht-root ist sie weder schreibbar noch noetig.
+# GENAU EINE Datei, nicht beide. Als root las nix beide und zaehlte den
+# Substituter zweimal auf (gemessen: "substituters = ... /nix ... /nix").
+# Wirkungslos, aber eine Liste, die sich selbst wiederholt, laedt dazu ein,
+# sie fuer eine Absicht zu halten.
+#
+# Welche zaehlt: als root die systemweite - laeuft nix als Daemon, liest nur
+# der sie. Als Nicht-root ist sie weder schreibbar noch noetig.
 if [ "$(id -u)" = "0" ]; then
   cache_eintragen /etc/nix/nix.conf
+else
+  cache_eintragen "$HOME/.config/nix/nix.conf"
+fi
+
+# Und nachsehen, ob es angekommen IST. Eine Konfigurationsdatei zu schreiben
+# ist nicht dasselbe, wie sie in Kraft zu setzen: laeuft nix als Daemon,
+# zaehlt /etc/nix/nix.conf - und der Daemon liest sie beim Start, nicht
+# nachtraeglich. Was hier steht, ist die WIRKSAME Konfiguration, gefragt beim
+# selben nix, das gleich baut.
+#
+# Die Warnung "ignoring untrusted flake configuration setting" bleibt davon
+# uebrigens unberuehrt und ist kein Widerspruch: sie sagt, dass nix dem
+# nixConfig DER FLAKE nicht traut. Genau deshalb steht der Substituter hier
+# in der Konfiguration - er braucht die Flake nicht mehr.
+nix_bin=$(command -v nix 2>/dev/null || true)
+[ -x "$NIX_BIN_PATH" ] && nix_bin="$NIX_BIN_PATH"
+if [ -n "$nix_bin" ]; then
+  echo "wirksame Substituter:"
+  { "$nix_bin" config show 2>/dev/null || "$nix_bin" show-config 2>/dev/null; } \
+    | grep -E "^(extra-)?(substituters|trusted-public-keys|trusted-users) " \
+    | sed 's/^/  /' || echo "  (nix nennt keine - das waere ein Befund)"
 fi
 
 # 2026-09-02: GitHub answers anonymous git smart-HTTP over HTTP/2 from this
