@@ -98,3 +98,37 @@ def test_derselbe_stand_ergibt_dieselben_bytes(tmp_path):
     a = pack_nupkg.packe(ROOT / "gappa-pin.json", stage, tmp_path / "a")
     b = pack_nupkg.packe(ROOT / "gappa-pin.json", stage, tmp_path / "b")
     assert a.read_bytes() == b.read_bytes()
+
+
+def test_das_choco_paket_traegt_was_die_moderation_verlangt(tmp_path):
+    """Chocolatey prueft ein Paket mit Binaerdateien von Hand nach.
+
+    Was sie sucht, ist nicht Kosmetik: woher die Binaerdatei stammt
+    (VERIFICATION.txt), unter welcher Lizenz sie weitergegeben wird
+    (LICENSE.txt und licenseUrl) und wo das Rezept steht (packageSourceUrl).
+    Fehlt eines davon, liegt das Paket in der Warteschlange statt in der
+    Registry - und niemand faehrt deswegen noch einmal eine Woche.
+    """
+    stage = _stage(tmp_path)
+    nupkg = pack_nupkg.packe(ROOT / "gappa-pin.json", stage, tmp_path / "choco",
+                             "choco")
+    # Der Name ist das, was jemand tippt: `choco install gappa`.
+    assert nupkg.name == "gappa.1.4.0.nupkg"
+
+    pin = json.loads((ROOT / "gappa-pin.json").read_text(encoding="utf-8"))
+    with zipfile.ZipFile(nupkg) as z:
+        namen = set(z.namelist())
+        spec = z.read("gappa.nuspec").decode()
+        pruef = z.read("tools/VERIFICATION.txt").decode()
+
+    assert "tools/VERIFICATION.txt" in namen
+    assert "tools/LICENSE.txt" in namen
+    assert "tools/source/gappa-1.4.0.tar.gz" in namen
+    assert pin["windows_build"]["tool_licence"]["url"] in spec
+    assert "packageSourceUrl" in spec
+
+    # Die Verifikation nennt NUR Adressen, die aus den Pins folgen - sonst
+    # schickt sie einen Moderator an eine Stelle, an der nichts liegt.
+    for adresse in pack_nupkg.oeffentliche_adressen("gappa"):
+        assert adresse in pruef
+    assert pin["source"]["gappa-1.4.0.tar.gz"]["sha256"] in pruef

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dasselbe Windows-Paket noch einmal als .nupkg - fuer Ketten, die NuGet sprechen.
+"""Dasselbe Windows-Paket noch einmal als .nupkg - fuer NuGet und Chocolatey.
 
 WOZU, WO ES ZIP UND INSTALLER SCHON GIBT:
 Zip und Installer setzen einen Menschen voraus, der eine Datei holt und
@@ -22,15 +22,25 @@ gefuellt hat. Eine zweite Stelle, die Lizenzen zusammensucht, waere eine
 zweite Autoritaet - und eine von beiden liefert irgendwann ein Paket aus,
 dessen Hinweis nicht mehr stimmt.
 
+ZWEI KETTEN, EIN PAKETFORMAT:
+Ein Chocolatey-Paket IST ein .nupkg - nur mit mehr Feldern in der .nuspec und
+zwei Dateien, nach denen die Moderation sucht. Und weil Chocolatey fuer jede
+.exe unter tools/ von selbst einen Shim anlegt, ist das Verzeichnis, das wir
+ohnehin packen, schon die richtige Form. Deshalb `--art`, und kein zweites
+Skript: der Unterschied sind Metadaten, nicht das Paket.
+
 Aufruf:
     python tools/windows/pack_nupkg.py --pin gappa-pin.json \\
         --stage dist/gappa/stage --out dist/gappa-nuget
+    python tools/windows/pack_nupkg.py --pin gappa-pin.json --art choco \\
+        --stage dist/gappa/stage --out dist/gappa-choco
 """
 from __future__ import annotations
 
 import argparse
 import json
 import pathlib
+import sys
 import xml.etree.ElementTree as ET
 import zipfile
 from xml.sax.saxutils import escape
@@ -40,6 +50,7 @@ from xml.sax.saxutils import escape
 #: die es nicht gab. 1980-01-01 ist das Aelteste, was ein Zip-Kopf kann.
 EPOCHE = (1980, 1, 1, 0, 0, 0)
 
+WURZEL = pathlib.Path(__file__).resolve().parents[2]
 PROJEKT = "https://github.com/mprotogerakis/zqel-toolchain"
 
 NUSPEC = """<?xml version="1.0" encoding="utf-8"?>
@@ -59,7 +70,15 @@ NUSPEC = """<?xml version="1.0" encoding="utf-8"?>
 """
 
 
-def paket_id(werkzeug: str) -> str:
+def paket_id(werkzeug: str, art: str = "nuget") -> str:
+    """Der Name, unter dem jemand das Paket anspricht.
+
+    Zwei Ketten, zwei Gepflogenheiten: NuGet-Ids sind Namensraeume mit
+    Grossschreibung, Chocolatey-Ids sind das, was jemand tippt -
+    `choco install gappa`. Ein gemeinsamer Name waere in beiden falsch.
+    """
+    if art == "choco":
+        return werkzeug
     return f"Zqel.{werkzeug.capitalize()}.win-x64"
 
 
@@ -81,6 +100,59 @@ def paketversion(pin: dict) -> str:
     version = ".".join(teile[:3])
     revision = pin.get("revision")
     return f"{version}-rev{revision[:7]}" if revision else version
+
+
+#: Chocolatey will mehr Felder als NuGet - und eine LizenzURL, keinen Text.
+#: `packageSourceUrl` ist das, wonach die Moderation zuerst fragt: wo steht
+#: das Rezept, aus dem dieses Paket entstanden ist.
+CHOCO_NUSPEC = """<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>{id}</id>
+    <version>{version}</version>
+    <title>{titel}</title>
+    <authors>{upstream_autor}</authors>
+    <owners>zqel-toolchain</owners>
+    <projectUrl>{upstream}</projectUrl>
+    <packageSourceUrl>{projekt}</packageSourceUrl>
+    <licenseUrl>{lizenz_url}</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <summary>{zusammenfassung}</summary>
+    <description>{beschreibung}</description>
+    <tags>{tags}</tags>
+  </metadata>
+</package>
+"""
+
+#: Die Moderation von Chocolatey liest das, nicht wir - deshalb englisch.
+VERIFICATION = """VERIFICATION
+
+Verification is intended to assist the Chocolatey moderators and the community
+in verifying that this package's contents are trustworthy.
+
+This package embeds {werkzeug}.exe, which we compiled ourselves from the source
+tarball that ships INSIDE this package:
+
+    tools/source/{quellname}
+    upstream: {quell_url}
+    sha256:   {quell_hash}
+
+The build recipe is public: {rezept} in {projekt}
+The exact pin it was built from: tools/PIN.txt
+
+The same binaries are published, unmodified, at a public address together with
+their SHA-256 sidecars:
+
+{adressen}
+
+The runtime DLLs are NOT built by us. They are passed on unchanged from MSYS2;
+tools/SOURCES.txt names the package, the measured version and where to obtain
+their source. Every licence text required by those libraries travels in
+tools/licenses/, and tools/NOTICE.txt summarises them.
+
+To verify: download the public zip above, compare its SHA-256 with the sidecar,
+and compare the files under tools/ with the contents of this package.
+"""
 
 
 def nuspec(pin: dict, werkzeug: str) -> str:
@@ -108,6 +180,62 @@ def nuspec(pin: dict, werkzeug: str) -> str:
         spdx=escape(spdx),
         beschreibung=escape(beschreibung),
         tags=f"{werkzeug} windows zqel toolchain",
+    )
+
+
+def oeffentliche_adressen(werkzeug: str) -> list[str]:
+    """Wo dasselbe Binary oeffentlich liegt - aus tools/toolchain_adressen.py.
+
+    NICHT hier zusammengesetzt: dieselbe Ableitung stand schon einmal zweimal
+    im Baum, und die zweite Stelle driftete. Ein Verifikationstext, der eine
+    Adresse nennt, die es nicht gibt, ist schlimmer als keiner.
+    """
+    sys.path.insert(0, str(WURZEL / "tools"))
+    from toolchain_adressen import adressen, alle
+
+    return [a for a in adressen(alle()[werkzeug])
+            if a.endswith(".zip") or a.endswith(".zip.sha256")]
+
+
+def choco_nuspec(pin: dict, werkzeug: str) -> str:
+    bau = pin["windows_build"]
+    quellname, q = next(iter(pin["source"].items()))
+    return CHOCO_NUSPEC.format(
+        id=paket_id(werkzeug, "choco"),
+        version=paketversion(pin),
+        titel=f"{werkzeug} (Windows x86_64)",
+        # Der Autor ist UPSTREAM, nicht wir - wir paketieren nur. Chocolatey
+        # trennt das in authors und owners, und die Verwechslung waere eine
+        # Anmassung.
+        upstream_autor=escape(pin["upstream_project"]),
+        upstream=escape(pin["upstream_project"]),
+        projekt=PROJEKT,
+        lizenz_url=escape(bau["tool_licence"]["url"]),
+        zusammenfassung=escape(
+            f"{werkzeug} {paketversion(pin)} fuer Windows x86_64, aus der "
+            f"gepinnten Quelle uebersetzt ({bau['tool_licence']['spdx']})"),
+        beschreibung=escape(
+            f"{werkzeug} {paketversion(pin)}, uebersetzt aus {q['url']} "
+            f"(sha256 {q['sha256']}) mit MSYS2/MINGW64. Der Quell-Tarball "
+            f"liegt im Paket unter tools/source/{quellname}, die Lizenztexte "
+            f"unter tools/licenses/, der Herkunftsnachweis in "
+            f"tools/SOURCES.txt und der Pin in tools/PIN.txt. Chocolatey "
+            f"legt fuer {werkzeug}.exe von selbst einen Shim an; die fuenf "
+            f"Laufzeit-DLLs liegen daneben und muessen daneben bleiben."),
+        tags=f"{werkzeug} windows prover toolchain zqel",
+    )
+
+
+def verification(pin: dict, werkzeug: str) -> str:
+    quellname, q = next(iter(pin["source"].items()))
+    return VERIFICATION.format(
+        werkzeug=werkzeug,
+        quellname=quellname,
+        quell_url=q["url"],
+        quell_hash=q["sha256"],
+        rezept=f"tools/windows/build_{werkzeug}.ps1",
+        projekt=PROJEKT,
+        adressen="\n".join(f"    {a}" for a in oeffentliche_adressen(werkzeug)),
     )
 
 
@@ -139,8 +267,8 @@ def content_types(pfade: list[str]) -> str:
     return "\n".join(zeilen) + "\n"
 
 
-def packe(pin_pfad: pathlib.Path, stage: pathlib.Path,
-          out: pathlib.Path) -> pathlib.Path:
+def packe(pin_pfad: pathlib.Path, stage: pathlib.Path, out: pathlib.Path,
+          art: str = "nuget") -> pathlib.Path:
     werkzeug = pin_pfad.name.removesuffix("-pin.json")
     pin = json.loads(pin_pfad.read_text(encoding="utf-8"))
     dateien = sorted(p for p in stage.rglob("*") if p.is_file())
@@ -173,14 +301,26 @@ def packe(pin_pfad: pathlib.Path, stage: pathlib.Path,
                 "ohne ihn behauptet SOURCES.txt im Paket etwas Falsches. "
                 "Er entsteht in New-ToolPackage; erst bauen, dann packen.")
         im_paket[f"tools/source/{name}"] = quelle
-    ziel = out / f"{paket_id(werkzeug)}.{paketversion(pin)}.nupkg"
+    kennung = paket_id(werkzeug, art)
+    ziel = out / f"{kennung}.{paketversion(pin)}.nupkg"
     out.mkdir(parents=True, exist_ok=True)
 
-    inhalt: dict[str, bytes] = {
-        f"{paket_id(werkzeug)}.nuspec": nuspec(pin, werkzeug).encode("utf-8"),
-    }
+    spec = choco_nuspec(pin, werkzeug) if art == "choco" else nuspec(pin, werkzeug)
+    inhalt: dict[str, bytes] = {f"{kennung}.nuspec": spec.encode("utf-8")}
     for name, quelle in im_paket.items():
         inhalt[name] = quelle.read_bytes()
+
+    if art == "choco":
+        # Zwei Dateien, nach denen die Moderation ausdruecklich sucht, sobald
+        # ein Paket Binaerdateien mitbringt: woher sie stammen und unter
+        # welcher Lizenz. Beides steht schon im Paket - hier noch einmal an
+        # den Stellen, an denen Chocolatey es erwartet.
+        inhalt["tools/VERIFICATION.txt"] = verification(pin, werkzeug).encode("ascii", "replace")
+        lizenz = stage / "COPYING"
+        if not lizenz.is_file():
+            raise SystemExit(f"{lizenz} fehlt - ohne Lizenztext kein Paket")
+        inhalt["tools/LICENSE.txt"] = lizenz.read_bytes()
+
     inhalt["[Content_Types].xml"] = content_types(sorted(inhalt)).encode("utf-8")
 
     with zipfile.ZipFile(ziel, "w", zipfile.ZIP_DEFLATED) as z:
@@ -190,7 +330,7 @@ def packe(pin_pfad: pathlib.Path, stage: pathlib.Path,
             info.compress_type = zipfile.ZIP_DEFLATED
             z.writestr(info, inhalt[name])
 
-    pruefe(ziel, len(im_paket))
+    pruefe(ziel, sum(1 for n in inhalt if n.startswith("tools/")))
     return ziel
 
 
@@ -219,10 +359,12 @@ def main(argv=None) -> int:
     ap.add_argument("--pin", required=True, help="gappa-pin.json / matiec-pin.json")
     ap.add_argument("--stage", required=True, help="das fertige Stage-Verzeichnis")
     ap.add_argument("--out", required=True, help="Verzeichnis fuer das .nupkg")
+    ap.add_argument("--art", default="nuget", choices=("nuget", "choco"),
+                    help="fuer welche Kette - NuGet-Feed oder Chocolatey")
     args = ap.parse_args(argv)
 
     ziel = packe(pathlib.Path(args.pin), pathlib.Path(args.stage),
-                 pathlib.Path(args.out))
+                 pathlib.Path(args.out), args.art)
     print(f"  {ziel}  {ziel.stat().st_size / 1048576:.2f} MB")
     return 0
 
