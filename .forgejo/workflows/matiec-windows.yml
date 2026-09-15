@@ -211,6 +211,44 @@ jobs:
           }
           Write-Output "$uri/index.json"
 
+      # Nach dl.zqel.org - dem OEFFENTLICHEN Ablageort.
+      #
+      # Die forgejo-Registry loest auf 10.30.38.20 auf (gemessen 2026-09-13),
+      # ist also nur im HSD-Netz erreichbar. Ein Link aus der oeffentlichen
+      # Doku dorthin waere fuer jeden draussen tot. Deshalb beides: Registry
+      # intern, R2 oeffentlich.
+      #
+      # KORREKTUR vom 2026-09-14: hier stand, gespiegelte Fremdartefakte
+      # gingen NICHT nach R2. Das war falsch - mirror-tools.yml legt sie seit
+      # jeher unter tools/<werkzeug>/<version>/ ab, und alle 13 antworten dort
+      # (gemessen, tools/write_download_table.py). Der Satz beschrieb eine
+      # Absicht, nicht den Bestand.
+      - name: Nach dl.zqel.org
+      # KEINE Bedingung auf die Zugaenge - mit Absicht.
+      #
+      # Hier stand `if: ${{ env.R2_ID != '' }}`. Das machte aus einem lauten
+      # Fehlschlag ein stilles Ueberspringen: fehlten die Geheimnisse, lief
+      # der Job gruen durch und veroeffentlichte nichts. Genau die fail-open
+      # Stufe aus #210, nur an der Auslieferung statt an einem Verdikt.
+      #
+      # tools/publish_r2.py faellt selbst geschlossen aus - Exit 1 mit einem
+      # Satz, gemessen. Ein Lauf ohne Zugaenge SOLL rot sein.
+        shell: pwsh
+        env:
+          R2_ID: ${{ secrets.R2_ID }}
+          R2_SECRET: ${{ secrets.R2_SECRET }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+        run: |
+          $f = (Get-ChildItem dist\matiec\* -File | ForEach-Object { $_.FullName })
+          python tools\publish_r2.py --prefix "tools/matiec/$env:MATIEC_REV" @f
+          if ($LASTEXITCODE -ne 0) { throw "publish_r2 exit $LASTEXITCODE" }
+
+      # GANZ ZUM SCHLUSS, und das ist der Grund:
+      # Alles darueber ist unsere eigene Auslieferung - die Registry
+      # im Haus und dl.zqel.org. Chocolatey ist ein fremder Dienst.
+      # Stuende dieser Schritt davor, haette eine Panne dort unsere
+      # oeffentliche Auslieferung verhindert: ein Werkzeug, das
+      # niemand herunterladen kann, weil ein Dritter 500 sagt.
       - name: Nach Chocolatey
         # #20. ANDERE REGEL ALS OBEN, mit Absicht: die forgejo-Registry ist
         # unsere eigene - dorthin zu veroeffentlichen ist die Pflicht dieses
@@ -249,35 +287,3 @@ jobs:
               throw "Chocolatey-Upload $($nupkg.Name): HTTP $code"
             }
           }
-
-      # Nach dl.zqel.org - dem OEFFENTLICHEN Ablageort.
-      #
-      # Die forgejo-Registry loest auf 10.30.38.20 auf (gemessen 2026-09-13),
-      # ist also nur im HSD-Netz erreichbar. Ein Link aus der oeffentlichen
-      # Doku dorthin waere fuer jeden draussen tot. Deshalb beides: Registry
-      # intern, R2 oeffentlich.
-      #
-      # KORREKTUR vom 2026-09-14: hier stand, gespiegelte Fremdartefakte
-      # gingen NICHT nach R2. Das war falsch - mirror-tools.yml legt sie seit
-      # jeher unter tools/<werkzeug>/<version>/ ab, und alle 13 antworten dort
-      # (gemessen, tools/write_download_table.py). Der Satz beschrieb eine
-      # Absicht, nicht den Bestand.
-      - name: Nach dl.zqel.org
-      # KEINE Bedingung auf die Zugaenge - mit Absicht.
-      #
-      # Hier stand `if: ${{ env.R2_ID != '' }}`. Das machte aus einem lauten
-      # Fehlschlag ein stilles Ueberspringen: fehlten die Geheimnisse, lief
-      # der Job gruen durch und veroeffentlichte nichts. Genau die fail-open
-      # Stufe aus #210, nur an der Auslieferung statt an einem Verdikt.
-      #
-      # tools/publish_r2.py faellt selbst geschlossen aus - Exit 1 mit einem
-      # Satz, gemessen. Ein Lauf ohne Zugaenge SOLL rot sein.
-        shell: pwsh
-        env:
-          R2_ID: ${{ secrets.R2_ID }}
-          R2_SECRET: ${{ secrets.R2_SECRET }}
-          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-        run: |
-          $f = (Get-ChildItem dist\matiec\* -File | ForEach-Object { $_.FullName })
-          python tools\publish_r2.py --prefix "tools/matiec/$env:MATIEC_REV" @f
-          if ($LASTEXITCODE -ne 0) { throw "publish_r2 exit $LASTEXITCODE" }
