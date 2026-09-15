@@ -74,11 +74,31 @@ def paket_id(werkzeug: str, art: str = "nuget") -> str:
     """Der Name, unter dem jemand das Paket anspricht.
 
     Zwei Ketten, zwei Gepflogenheiten: NuGet-Ids sind Namensraeume mit
-    Grossschreibung, Chocolatey-Ids sind das, was jemand tippt -
-    `choco install gappa`. Ein gemeinsamer Name waere in beiden falsch.
+    Grossschreibung, Chocolatey-Ids sind flach und klein geschrieben. Ein
+    gemeinsamer Name waere in beiden falsch.
+
+    WARUM `zqel-gappa` UND NICHT `gappa` (entschieden 2026-09-15):
+    Der schlichte Name waere auf dem Community-Feed die Konvention - dort
+    pflegen Paketbetreuer die Pakete, nicht die Hersteller (`git`, `7zip`,
+    `sysinternals` sind gemessen genau das). Er verspricht aber auch, DAS
+    gappa zu sein, und damit die jeweils aktuelle Version. Dieses Paket
+    verspricht das Gegenteil: es traegt, was der zqel-Gate faehrt, und bleibt
+    auf 1.4.0, waehrend Upstream bei 1.8.3 steht. Ein absichtlich
+    eingefrorenes Paket unter dem kanonischen Namen waere eine falsche
+    Zusage an jeden, der `choco install gappa` tippt.
+
+    Der Bindestrich, nicht der Punkt: auf Chocolatey ist der Punkt ein
+    VARIANTEN-Suffix (`git.install`, `git.portable`, `nodejs.install` -
+    alle gemessen). `zqel.gappa` laese sich als Variante eines Pakets
+    namens `zqel`. Qualifizierte Namen tragen dort Bindestriche
+    (`microsoft-teams`, `google-chrome-x64`).
+
+    Bei winget ist es umgekehrt: dort ist `Publisher.Package` die
+    vorgeschriebene Form, und `zqel.gappa` ist richtig. Zwei Namensmodelle,
+    keine Inkonsequenz.
     """
     if art == "choco":
-        return werkzeug
+        return f"zqel-{werkzeug}"
     return f"Zqel.{werkzeug.capitalize()}.win-x64"
 
 
@@ -203,25 +223,33 @@ def choco_nuspec(pin: dict, werkzeug: str) -> str:
     return CHOCO_NUSPEC.format(
         id=paket_id(werkzeug, "choco"),
         version=paketversion(pin),
-        titel=f"{werkzeug} (Windows x86_64)",
-        # Der Autor ist UPSTREAM, nicht wir - wir paketieren nur. Chocolatey
-        # trennt das in authors und owners, und die Verwechslung waere eine
-        # Anmassung.
+        # AB HIER ENGLISCH, und das ist kein Stilbruch: diese Felder zeigt
+        # Chocolatey seinen Nutzern, und die sitzen nicht in Duesseldorf.
+        # Dieselbe Regel wie bei VERIFICATION.txt - wer es liest, entscheidet
+        # die Sprache, nicht wer es schreibt.
+        titel=f"{werkzeug} (Windows x86_64, pinned to the zqel toolchain)",
         upstream_autor=escape(pin["upstream_publisher"]),
         upstream=escape(pin["upstream_project"]),
         projekt=PROJEKT,
         lizenz_url=escape(bau["tool_licence"]["url"]),
         zusammenfassung=escape(
-            f"{werkzeug} {paketversion(pin)} fuer Windows x86_64, aus der "
-            f"gepinnten Quelle uebersetzt ({bau['tool_licence']['spdx']})"),
+            f"{werkzeug} {paketversion(pin)} for Windows x86_64, pinned to the "
+            f"version the zqel verification gate runs - it does NOT follow "
+            f"upstream ({bau['tool_licence']['spdx']})"),
         beschreibung=escape(
-            f"{werkzeug} {paketversion(pin)}, uebersetzt aus {q['url']} "
-            f"(sha256 {q['sha256']}) mit MSYS2/MINGW64. Der Quell-Tarball "
-            f"liegt im Paket unter tools/source/{quellname}, die Lizenztexte "
-            f"unter tools/licenses/, der Herkunftsnachweis in "
-            f"tools/SOURCES.txt und der Pin in tools/PIN.txt. Chocolatey "
-            f"legt fuer {werkzeug}.exe von selbst einen Shim an; die fuenf "
-            f"Laufzeit-DLLs liegen daneben und muessen daneben bleiben."),
+            f"{werkzeug} {paketversion(pin)}, compiled with MSYS2/MINGW64 from "
+            f"{q['url']} (sha256 {q['sha256']}). The source tarball ships in "
+            f"the package under tools/source/{quellname}, the licence texts "
+            f"under tools/licenses/, the provenance record in "
+            f"tools/SOURCES.txt and the exact pin in tools/PIN.txt. Chocolatey "
+            f"shims {werkzeug}.exe automatically; the runtime DLLs sit beside "
+            f"it and must stay there. "
+            f"NOTE: this package does not track upstream releases. It carries "
+            f"the version that the zqel verification gate runs, and it moves "
+            f"only when that pin moves. If you want the latest {werkzeug}, "
+            f"this is the wrong package - the point of this one is that the "
+            f"prover on your Windows machine is the same prover that produced "
+            f"the verdict."),
         tags=f"{werkzeug} windows prover toolchain zqel",
     )
 

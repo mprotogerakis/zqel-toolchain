@@ -112,13 +112,15 @@ def test_das_choco_paket_traegt_was_die_moderation_verlangt(tmp_path):
     stage = _stage(tmp_path)
     nupkg = pack_nupkg.packe(ROOT / "gappa-pin.json", stage, tmp_path / "choco",
                              "choco")
-    # Der Name ist das, was jemand tippt: `choco install gappa`.
-    assert nupkg.name == "gappa.1.4.0.nupkg"
+    # NICHT `gappa`: der kanonische Name verspricht die jeweils aktuelle
+    # Fassung, dieses Paket verspricht die gepinnte. Bindestrich, nicht
+    # Punkt - der Punkt ist auf Chocolatey ein Variantensuffix.
+    assert nupkg.name == "zqel-gappa.1.4.0.nupkg"
 
     pin = json.loads((ROOT / "gappa-pin.json").read_text(encoding="utf-8"))
     with zipfile.ZipFile(nupkg) as z:
         namen = set(z.namelist())
-        spec = z.read("gappa.nuspec").decode()
+        spec = z.read("zqel-gappa.nuspec").decode()
         pruef = z.read("tools/VERIFICATION.txt").decode()
 
     assert "tools/VERIFICATION.txt" in namen
@@ -132,3 +134,9 @@ def test_das_choco_paket_traegt_was_die_moderation_verlangt(tmp_path):
     for adresse in pack_nupkg.oeffentliche_adressen("gappa"):
         assert adresse in pruef
     assert pin["source"]["gappa-1.4.0.tar.gz"]["sha256"] in pruef
+
+    # Und die Beschreibung sagt es auch: wer die neueste Fassung sucht, ist
+    # hier falsch. Der Name allein traegt diese Zusage nicht.
+    # Englisch, weil Chocolatey diese Felder seinen Nutzern zeigt.
+    assert "does NOT follow" in spec
+    assert "does not track upstream releases" in spec
