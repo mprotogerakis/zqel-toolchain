@@ -168,12 +168,13 @@ jobs:
         # pwsh (7), die Bauskripte unter Windows PowerShell 5.1. Deshalb steht
         # der Upload hier und nicht im Bauskript.
         #
-        # Der Weg ist gemessen - aber mit gappa (2026-09-15, Job 3831): der
-        # Endpunkt nimmt multipart an, das Paket ist danach von aussen
-        # auflösbar. Hier ist es derselbe Aufruf mit einem anderen Paket;
-        # die erste Fahrt dieses Workflows ist die Gegenprobe. Der eine
-        # Unterschied, den sie prueft, ist die Vorabversion: forgejo muss
-        # `0.1.0-rev7949c0b` als SemVer annehmen.
+        # GEMESSEN am 2026-09-15 (Job 3501 auf ef16b6b): der Endpunkt nimmt
+        # multipart an, und er nimmt die VORABVERSION an - die Registry
+        # fuehrt Zqel.Matiec.win-x64 0.1.0-rev7949c0b. Das war die eine
+        # offene Frage gegenueber gappa, denn `0.1.0-rev...` ist SemVer mit
+        # Vorabteil, und ein Feed darf das ablehnen. Von aussen
+        # zurueckgeholt: 41 Eintraege, iec2c.exe, sechs Lizenztexte und der
+        # Quell-Tarball mit dem sha256 aus dem Pin (730477 Bytes).
         shell: pwsh
         env:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
