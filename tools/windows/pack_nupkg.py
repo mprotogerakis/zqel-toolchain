@@ -38,6 +38,7 @@ Aufruf:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import pathlib
 import sys
@@ -267,6 +268,65 @@ def verification(pin: dict, werkzeug: str) -> str:
     )
 
 
+#: Die beiden OPC-Teile, die ein .nupkg zu einem Paket machen - und die
+#: meinem ersten Entwurf gefehlt haben.
+#:
+#: GEMESSEN am 2026-09-15: der Upload nach push.chocolatey.org antwortete mit
+#: HTTP 500. Ein echtes Paket von dort (7zip) traegt vier Dateien im Rumpf:
+#: _rels/.rels, die .nuspec, [Content_Types].xml und eine .psmdcp unter
+#: package/services/metadata/core-properties/. Die forgejo-Registry liest nur
+#: die .nuspec und war zufrieden; die NuGet-Gallery von Chocolatey oeffnet das
+#: Paket als OPC-Dokument und findet ohne _rels/.rels gar keinen Einstieg.
+RELS = """<?xml version="1.0" encoding="utf-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Type="http://schemas.microsoft.com/packaging/2010/07/manifest" Target="/{nuspec}" Id="R{id_spec}" />
+  <Relationship Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="/{psmdcp}" Id="R{id_props}" />
+</Relationships>
+"""
+
+PSMDCP = """<?xml version="1.0" encoding="utf-8"?>
+<coreProperties xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.openxmlformats.org/package/2006/metadata/core-properties">
+  <dc:creator>{autor}</dc:creator>
+  <dc:description>{beschreibung}</dc:description>
+  <dc:identifier>{id}</dc:identifier>
+  <version>{version}</version>
+  <keywords>{tags}</keywords>
+  <lastModifiedBy>tools/windows/pack_nupkg.py</lastModifiedBy>
+</coreProperties>
+"""
+
+#: OPC verlangt fuer diese beiden Endungen bestimmte Typen - `octet-stream`
+#: waere formal falsch und genau der Fall, in dem ein strenger Leser aussteigt.
+OPC_TYPEN = {
+    "rels": "application/vnd.openxmlformats-package.relationships+xml",
+    "psmdcp": "application/vnd.openxmlformats-package.core-properties+xml",
+    "nuspec": "application/octet",
+}
+
+
+def opc_teile(kennung: str, version: str, autor: str, beschreibung: str,
+              tags: str) -> dict[str, bytes]:
+    """_rels/.rels und die core-properties - beide mit STABILEN Namen.
+
+    Echte Werkzeuge wuerfeln den Namen der .psmdcp und die Relationship-Ids.
+    Hier werden sie aus Kennung und Version abgeleitet: derselbe Stand soll
+    dieselben Bytes ergeben, sonst meldet die Registry jede Woche eine
+    Aenderung, die es nicht gab.
+    """
+    stamm = hashlib.md5(f"{kennung} {version}".encode("utf-8")).hexdigest()
+    psmdcp = f"package/services/metadata/core-properties/{stamm}.psmdcp"
+    return {
+        "_rels/.rels": RELS.format(
+            nuspec=f"{kennung}.nuspec", psmdcp=psmdcp,
+            id_spec=stamm[:16].upper(), id_props=stamm[16:].upper(),
+        ).encode("utf-8"),
+        psmdcp: PSMDCP.format(
+            autor=escape(autor), beschreibung=escape(beschreibung),
+            id=escape(kennung), version=escape(version), tags=escape(tags),
+        ).encode("utf-8"),
+    }
+
+
 def content_types(pfade: list[str]) -> str:
     """Der OPC-Kopf. Ohne ihn ist die Datei fuer strenge Leser kein Paket.
 
@@ -284,7 +344,8 @@ def content_types(pfade: list[str]) -> str:
         '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">',
     ]
     zeilen += [
-        f'  <Default Extension="{e}" ContentType="application/octet-stream" />'
+        f'  <Default Extension="{e}" ContentType="'
+        f'{OPC_TYPEN.get(e, "application/octet-stream")}" />'
         for e in endungen
     ]
     zeilen += [
@@ -348,6 +409,15 @@ def packe(pin_pfad: pathlib.Path, stage: pathlib.Path, out: pathlib.Path,
         if not lizenz.is_file():
             raise SystemExit(f"{lizenz} fehlt - ohne Lizenztext kein Paket")
         inhalt["tools/LICENSE.txt"] = lizenz.read_bytes()
+
+    # Die OPC-Teile, ohne die ein strenger Leser das Paket nicht oeffnet
+    # (gemessen: push.chocolatey.org antwortet sonst mit HTTP 500).
+    inhalt.update(opc_teile(
+        kennung, paketversion(pin),
+        autor=pin.get("upstream_publisher", "zqel-toolchain"),
+        beschreibung=f"{werkzeug} {paketversion(pin)} fuer Windows x86_64, "
+                     f"gepinnt auf den Stand der zqel-Werkzeugkette",
+        tags=f"{werkzeug} windows zqel"))
 
     inhalt["[Content_Types].xml"] = content_types(sorted(inhalt)).encode("utf-8")
 

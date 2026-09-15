@@ -140,3 +140,44 @@ def test_das_choco_paket_traegt_was_die_moderation_verlangt(tmp_path):
     # Englisch, weil Chocolatey diese Felder seinen Nutzern zeigt.
     assert "does NOT follow" in spec
     assert "does not track upstream releases" in spec
+
+
+def test_das_paket_ist_ein_opc_dokument(tmp_path):
+    """Ein .nupkg ist nicht irgendein Zip - es ist ein OPC-Paket.
+
+    GEMESSEN am 2026-09-15: der Upload nach push.chocolatey.org antwortete mit
+    HTTP 500. Die forgejo-Registry liest nur die .nuspec und war zufrieden;
+    die NuGet-Gallery von Chocolatey oeffnet das Paket als OPC-Dokument und
+    findet ohne _rels/.rels gar keinen Einstieg. Ein echtes Paket von dort
+    (7zip) traegt genau diese vier Teile im Rumpf.
+    """
+    stage = _stage(tmp_path)
+    nupkg = pack_nupkg.packe(ROOT / "gappa-pin.json", stage, tmp_path / "o", "choco")
+    with zipfile.ZipFile(nupkg) as z:
+        namen = z.namelist()
+        rels = z.read("_rels/.rels").decode()
+        typen = z.read("[Content_Types].xml").decode()
+
+    assert "_rels/.rels" in namen
+    props = [n for n in namen if n.endswith(".psmdcp")]
+    assert len(props) == 1, "genau eine core-properties erwartet"
+    assert props[0].startswith("package/services/metadata/core-properties/")
+
+    # Die Beziehung muss auf die .nuspec zeigen, sonst findet ein Leser sie
+    # nicht - und auf die psmdcp, die wirklich im Paket liegt.
+    assert 'Target="/zqel-gappa.nuspec"' in rels
+    assert f'Target="/{props[0]}"' in rels
+
+    # `octet-stream` waere fuer diese beiden formal falsch.
+    assert 'Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"' in typen
+    assert 'Extension="psmdcp" ContentType="application/vnd.openxmlformats-package.core-properties+xml"' in typen
+
+
+def test_auch_die_opc_teile_sind_bei_gleichem_stand_gleich(tmp_path):
+    """Echte Werkzeuge wuerfeln den Namen der .psmdcp und die Ids. Hier werden
+    sie abgeleitet - sonst meldete die Registry jede Woche eine Aenderung, die
+    es nicht gab."""
+    stage = _stage(tmp_path)
+    a = pack_nupkg.packe(ROOT / "gappa-pin.json", stage, tmp_path / "a", "choco")
+    b = pack_nupkg.packe(ROOT / "gappa-pin.json", stage, tmp_path / "b", "choco")
+    assert a.read_bytes() == b.read_bytes()
