@@ -46,6 +46,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "build_gappa exit $LASTEXITCODE" }
           $sw.Stop()
           "Dauer_min: " + [math]::Round($sw.Elapsed.TotalMinutes, 1)
+          # Dasselbe Stage-Verzeichnis noch einmal als .nupkg - in ein EIGENES
+          # Ausgabeverzeichnis, weil die Schritte darunter alles aus
+          # dist\gappa hochladen. Ein .nupkg in der generischen Registry und
+          # auf R2 waere ein zweites Zip mit fremdem Namen; ein Paket wird es
+          # erst am NuGet-Endpunkt.
+          python tools\windows\pack_nupkg.py --pin gappa-pin.json `
+            --stage dist\gappa\stage --out dist\gappa-nuget
+          if ($LASTEXITCODE -ne 0) { throw "pack_nupkg exit $LASTEXITCODE" }
           $v = (Get-Content gappa-pin.json -Raw | ConvertFrom-Json).version
           "GAPPA_VERSION=$v" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
@@ -137,6 +145,54 @@ jobs:
             }
           }
           Write-Output $base
+
+      - name: In die NuGet-Registry
+        # WARUM EIN ZWEITER UPLOAD UND NICHT EINFACH MIT IN DIE GENERISCHE:
+        # Ein .nupkg unter einer generischen Adresse ist eine Datei zum
+        # Herunterladen - dafuer gibt es das Zip laengst. Erst der
+        # NuGet-Endpunkt macht daraus eine QUELLE, aus der eine Kette
+        # `Zqel.Gappa.win-x64 1.4.0` aufloest und diese Angabe festhalten
+        # kann. Das ist der ganze Ertrag dieses Schritts.
+        #
+        # NICHT nach R2, aus demselben Grund umgekehrt: eine einzelne Datei
+        # ohne index.json ist kein Feed. Ein oeffentlicher NuGet-Dienst waere
+        # eine eigene Entscheidung, nicht ein Nebeneffekt hiervon.
+        #
+        # `-Form` gibt es erst ab PowerShell 6; diese Schritte laufen unter
+        # pwsh (7), die Bauskripte unter Windows PowerShell 5.1. Deshalb steht
+        # der Upload hier und nicht im Bauskript.
+        shell: pwsh
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+        run: |
+          # Kein stilles Ueberspringen, aber auch kein zweites Urteil: der
+          # Schritt davor hat ein fehlendes Token schon beurteilt und bricht
+          # auf main ab. Wer ohne Token bis hierher kommt, ist auf einem
+          # Zweig, der nicht veroeffentlichen darf.
+          if (-not $env:PACKAGE_TOKEN) {
+            Write-Host "kein PACKAGE_TOKEN - kein NuGet-Upload (siehe Schritt davor)"
+            exit 0
+          }
+          $nupkg = Get-ChildItem dist\gappa-nuget\*.nupkg | Select-Object -First 1
+          if (-not $nupkg) { throw "kein .nupkg in dist\gappa-nuget" }
+          $uri = "https://git.ei.intern.hs-duesseldorf.de/api/packages/proto/nuget"
+          $h = @{ Authorization = "token $env:PACKAGE_TOKEN"; "X-NuGet-ApiKey" = $env:PACKAGE_TOKEN }
+          try {
+            Invoke-WebRequest -Uri $uri -Method Put -Headers $h `
+              -Form @{ package = $nupkg } -UseBasicParsing | Out-Null
+            Write-Output "  neu:          $($nupkg.Name)"
+          } catch {
+            $code = $_.Exception.Response.StatusCode.value__
+            if ($code -eq 409) {
+              # Wie beim Zip: derselbe Pin baut dasselbe Paket. Eine
+              # woechentliche Neuveroeffentlichung behauptete eine Aenderung,
+              # die es nicht gibt.
+              Write-Output "  unveraendert: $($nupkg.Name) (schon veroeffentlicht)"
+            } else {
+              throw "NuGet-Upload $($nupkg.Name): HTTP $code"
+            }
+          }
+          Write-Output "$uri/index.json"
 
       # Nach dl.zqel.org - dem OEFFENTLICHEN Ablageort.
       #
