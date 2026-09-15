@@ -80,6 +80,25 @@ if [ "$(id -u)" = "0" ]; then
   cache_eintragen /etc/nix/nix.conf
 fi
 
+# Und nachsehen, ob es angekommen IST. Eine Konfigurationsdatei zu schreiben
+# ist nicht dasselbe, wie sie in Kraft zu setzen: laeuft nix als Daemon,
+# zaehlt /etc/nix/nix.conf - und der Daemon liest sie beim Start, nicht
+# nachtraeglich. Was hier steht, ist die WIRKSAME Konfiguration, gefragt beim
+# selben nix, das gleich baut.
+#
+# Die Warnung "ignoring untrusted flake configuration setting" bleibt davon
+# uebrigens unberuehrt und ist kein Widerspruch: sie sagt, dass nix dem
+# nixConfig DER FLAKE nicht traut. Genau deshalb steht der Substituter hier
+# in der Konfiguration - er braucht die Flake nicht mehr.
+nix_bin=$(command -v nix 2>/dev/null || true)
+[ -x "$NIX_BIN_PATH" ] && nix_bin="$NIX_BIN_PATH"
+if [ -n "$nix_bin" ]; then
+  echo "wirksame Substituter:"
+  { "$nix_bin" config show 2>/dev/null || "$nix_bin" show-config 2>/dev/null; } \
+    | grep -E "^(extra-)?(substituters|trusted-public-keys|trusted-users) " \
+    | sed 's/^/  /' || echo "  (nix nennt keine - das waere ein Befund)"
+fi
+
 # 2026-09-02: GitHub answers anonymous git smart-HTTP over HTTP/2 from this
 # image's git 2.55 with a blanket 401 (three gates died fetching creusot's
 # petgraph input; the SAME request over HTTP/1.1 answers 200, curl with and
