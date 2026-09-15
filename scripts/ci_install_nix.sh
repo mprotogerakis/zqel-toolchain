@@ -73,11 +73,17 @@ cache_eintragen() {
     echo "extra-trusted-public-keys = $schluessel"
   } >> "$ziel"
 }
-cache_eintragen "$HOME/.config/nix/nix.conf"
-# Im Container laeuft der Job als root, und dann zaehlt fuer den Daemon die
-# systemweite Datei. Als Nicht-root ist sie weder schreibbar noch noetig.
+# GENAU EINE Datei, nicht beide. Als root las nix beide und zaehlte den
+# Substituter zweimal auf (gemessen: "substituters = ... /nix ... /nix").
+# Wirkungslos, aber eine Liste, die sich selbst wiederholt, laedt dazu ein,
+# sie fuer eine Absicht zu halten.
+#
+# Welche zaehlt: als root die systemweite - laeuft nix als Daemon, liest nur
+# der sie. Als Nicht-root ist sie weder schreibbar noch noetig.
 if [ "$(id -u)" = "0" ]; then
   cache_eintragen /etc/nix/nix.conf
+else
+  cache_eintragen "$HOME/.config/nix/nix.conf"
 fi
 
 # Und nachsehen, ob es angekommen IST. Eine Konfigurationsdatei zu schreiben
