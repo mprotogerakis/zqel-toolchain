@@ -82,3 +82,49 @@ jobs:
           set -eu
           exec </dev/null
           python3 tools/write_download_table.py --pruefen
+
+  # Die Tests. Bis zum 2026-09-15 fuhr sie KEINE Fahrt.
+  #
+  # Neun Dateien, 120 Tests, und `grep -rn pytest .forgejo` fand nichts. Was
+  # dabei herauskommt, stand messbar im Baum: test_toolchain_lock.py war auf
+  # main rot (#21), seit irgendwann, und niemand hat es gemerkt. Eine Datei
+  # unter tests/ ohne eine Fahrt, die sie ruft, ist Dokumentation mit
+  # Verfallsdatum - und dieses Repository haelt an mehreren Stellen fest,
+  # dass etwas, das niemand baut, irgendwann kaputt ist, ohne aufzufallen.
+  #
+  # EIGENER JOB, nicht ein Schritt bei den downloads: die pruefen eine
+  # Zusage nach draussen, diese hier pruefen den Baum. Ein Job, der bei
+  # beidem rot wird, sagt nicht mehr, welches von beidem kaputt ist.
+  #
+  # Gemessen: 0,3 Sekunden fuer alles. Ganz ohne Leitung nach draussen geht
+  # es NICHT - test_the_lock_still_matches_the_pins ruft sammle(), und das
+  # holt latest.json (eine Anfrage, 0,11 s). Der Job gehoert damit zu den
+  # kurzen neben downloads, nicht vor den nix-Bau; und wenn dl.zqel.org
+  # schweigt, ist er rot. Das ist die Zusage dieser Datei, also richtig so.
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout without an external action
+        run: |
+          set -eu
+          exec </dev/null
+          git init -q .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          git -c protocol.version=2 fetch -q --depth 1 origin "$GITHUB_SHA"
+          git --no-pager -c core.pager=cat checkout -q FETCH_HEAD
+          echo "  ausgecheckt: $(git --no-pager log -1 --format=%h%x20%s)"
+
+      - name: pytest
+        run: |
+          set -eu
+          exec </dev/null
+          if ! python3 -m pytest --version >/dev/null 2>&1; then
+            # Neuere Abbilder markieren ihr Python als "externally managed"
+            # (PEP 668) und weisen pip ohne dieses Flag ab. Erst der normale
+            # Weg, dann der, den das Abbild erzwingt - und wenn beides
+            # scheitert, faellt der Job, statt die Tests zu ueberspringen.
+            pip3 install --quiet pytest \
+              || pip3 install --quiet --break-system-packages pytest
+          fi
+          python3 -m pytest tests -q
