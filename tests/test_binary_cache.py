@@ -426,3 +426,36 @@ def test_the_nars_go_up_before_the_narinfos_that_promise_them():
     assert nar_upload < info_upload, (
         "die narinfos gehen vor ihren NARs hoch - der Cache verspricht dann "
         "Pfade, die er nicht liefern kann")
+
+
+def test_die_ci_traegt_den_cache_aus_der_flake_ein_nicht_aus_einer_kopie():
+    """#32: der Runner verwarf unseren eigenen Cache.
+
+    nix fragt, ob es dem nixConfig einer Flake trauen darf; diese Jobs laufen
+    mit geschlossener Eingabe, also lautete die Antwort nein - gemessen im Log
+    von creusot-linux ("ignoring untrusted flake configuration setting"). Auf
+    einem warmen Runner faellt das nicht auf, auf einem frischen heisst es:
+    Beweiser aus der Quelle uebersetzen statt sie fertig zu holen.
+
+    Geprueft wird hier nicht, DASS ein Substituter eingetragen wird, sondern
+    WOHER er kommt: aus flake.nix. Eine dritte Kopie von Adresse und
+    Schluessel waere die, die irgendwann als einzige falsch ist - und ein
+    falscher Schluessel in einer CI entscheidet darueber, welcher Beweiser
+    laeuft.
+    """
+    skript = (ROOT / "scripts" / "ci_install_nix.sh").read_text(encoding="utf-8")
+    flake = (ROOT / "flake.nix").read_text(encoding="utf-8")
+
+    assert "extra-substituters" in skript and "extra-trusted-public-keys" in skript
+    assert "flake.nix" in skript, "abgelesen, nicht abgeschrieben"
+
+    # Kein Literal: weder die Adresse noch der Schluessel duerfen im Skript
+    # stehen. Beide stehen in flake.nix, und dort werden sie gelesen.
+    schluessel = re.search(r'"(dl\.zqel\.org-1:[^"]+)"', flake).group(1)
+    anweisungen = "\n".join(z for z in skript.splitlines()
+                            if not z.lstrip().startswith("#"))
+    assert schluessel not in anweisungen, "der Schluessel gehoert nur in flake.nix"
+
+    # Und ein leeres Ergebnis darf nicht durchgehen: ein Substituter ohne
+    # Schluessel ist schlimmer als keiner.
+    assert "exit 1" in skript
