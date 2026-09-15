@@ -44,11 +44,32 @@ def test_every_mirrored_tool_appears_in_the_lock():
 
 
 def test_every_artifact_has_its_licence_notice_beside_it():
-    """Ohne den Hinweis geben wir ein fremdes Binary ohne seine Lizenz weiter."""
+    """Ohne den Hinweis geben wir ein fremdes Binary ohne seine Lizenz weiter.
+
+    NICHT jede Datei neben dem Binary ist ein Artefakt. cbmc liefert ein
+    `licence_sidecar` - den Lizenztext von diffblue/cbmc als eigene Datei,
+    weil ein .msi sich ohne Windows nicht durchsehen laesst. Von IHM einen
+    Beipackzettel zu verlangen hiesse, einen Lizenzhinweis fuer einen
+    Lizenzhinweis zu fordern; genau daran war dieser Test rot, ohne dass die
+    Auslieferung einen Mangel hatte.
+
+    Welcher Name das ist, weiss `mirror-pin.json` - deshalb wird es dort
+    gefragt und steht nicht als Ausnahmeliste hier. Ein zweiter Sidecar
+    braeuchte sonst eine zweite Zeile an einer Stelle, die niemand ansieht.
+    """
+    pins = json.loads((ROOT / "mirror-pin.json").read_text(encoding="utf-8"))["tools"]
     for name, w in LOCK["werkzeuge"].items():
         if w["herkunft"] != "gespiegelt":
             continue
-        archive = [d for d in w["dateien"] if not d.endswith(".notice.txt")]
+        lizenztext = (pins[name].get("licence_sidecar") or {}).get("name")
+        if lizenztext:
+            # Die Ausnahme darf ihn nicht verschwinden lassen: er ist
+            # zugesagt, also muss er auch ausgeliefert werden.
+            assert any(d.endswith(f"/{lizenztext}") for d in w["dateien"]), (
+                f"{name}: {lizenztext} ist gepinnt, steht aber in keiner Adresse")
+        archive = [d for d in w["dateien"]
+                   if not d.endswith(".notice.txt")
+                   and not (lizenztext and d.endswith(f"/{lizenztext}"))]
         beilagen = {d for d in w["dateien"] if d.endswith(".notice.txt")}
         assert archive, f"{name}: keine Artefakte"
         for a in archive:

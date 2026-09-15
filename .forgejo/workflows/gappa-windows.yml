@@ -168,13 +168,14 @@ jobs:
         # pwsh (7), die Bauskripte unter Windows PowerShell 5.1. Deshalb steht
         # der Upload hier und nicht im Bauskript.
         #
-        # GEMESSEN am 2026-09-15 (Job 3831 auf 0ad6feb, win-nuitka-01): der
+        # GEMESSEN am 2026-09-15 (Jobs 3831 und 3500, win-nuitka-01): der
         # Endpunkt nimmt multipart an und antwortet mit "neu". Danach von
         # aussen gegengeprueft - die Registry fuehrt Zqel.Gappa.win-x64 1.4.0,
         # `registration/.../index.json` loest auf, und das zurueckgeholte
         # Paket traegt gappa.exe (18012024 Bytes), sieben Lizenztexte,
-        # NOTICE.txt, SOURCES.txt und PIN.txt. Vorher war das hier eine
-        # Protokollbeschreibung, keine Messung.
+        # NOTICE.txt, SOURCES.txt, PIN.txt und den Quell-Tarball, dessen
+        # sha256 dem Pin entspricht (6bf17688..., 387988 Bytes). Vorher war
+        # das hier eine Protokollbeschreibung, keine Messung.
         shell: pwsh
         env:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
