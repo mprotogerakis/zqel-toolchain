@@ -55,6 +55,12 @@ jobs:
           python tools\windows\pack_nupkg.py --pin matiec-pin.json `
             --stage dist\matiec\stage --out dist\matiec-nuget
           if ($LASTEXITCODE -ne 0) { throw "pack_nupkg exit $LASTEXITCODE" }
+          # Und dasselbe noch einmal fuer Chocolatey (#20). Kein zweites
+          # Skript: der Unterschied sind Metadaten und zwei Dateien fuer die
+          # Moderation - das Paket ist dasselbe Verzeichnis.
+          python tools\windows\pack_nupkg.py --pin matiec-pin.json --art choco `
+            --stage dist\matiec\stage --out dist\matiec-choco
+          if ($LASTEXITCODE -ne 0) { throw "pack_nupkg --art choco exit $LASTEXITCODE" }
           $p = Get-Content matiec-pin.json -Raw | ConvertFrom-Json
           $v = "$($p.version)-$($p.revision.Substring(0,7))"
           "MATIEC_REV=$v" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
@@ -237,3 +243,48 @@ jobs:
           $f = (Get-ChildItem dist\matiec\* -File | ForEach-Object { $_.FullName })
           python tools\publish_r2.py --prefix "tools/matiec/$env:MATIEC_REV" @f
           if ($LASTEXITCODE -ne 0) { throw "publish_r2 exit $LASTEXITCODE" }
+
+      # GANZ ZUM SCHLUSS, und das ist der Grund:
+      # Alles darueber ist unsere eigene Auslieferung - die Registry
+      # im Haus und dl.zqel.org. Chocolatey ist ein fremder Dienst.
+      # Stuende dieser Schritt davor, haette eine Panne dort unsere
+      # oeffentliche Auslieferung verhindert: ein Werkzeug, das
+      # niemand herunterladen kann, weil ein Dritter 500 sagt.
+      - name: Nach Chocolatey
+        # #20. ANDERE REGEL ALS OBEN, mit Absicht: die forgejo-Registry ist
+        # unsere eigene - dorthin zu veroeffentlichen ist die Pflicht dieses
+        # Laufs, und ein fehlendes Token auf main ein Fehler.
+        # push.chocolatey.org ist ein FREMDER, oeffentlicher Dienst mit
+        # Moderation. Dorthin zu veroeffentlichen ist eine Entscheidung, die
+        # jemand trifft, indem er CHOCO_API_KEY setzt - nicht die Pflicht
+        # eines woechentlichen Laufs. Ohne Schluessel wird hier gebaut und
+        # NICHT eingereicht, und das ist kein Fehler, sondern der Normalfall.
+        #
+        # Es braucht kein choco.exe: push.chocolatey.org ist ein
+        # NuGet-v2-Feed, und `choco push` ist darunter genau dieses PUT mit
+        # X-NuGet-ApiKey. Ein zweites Paketsystem auf der Baumaschine waere
+        # eine Zeile in deps.winget.json fuer nichts.
+        shell: pwsh
+        env:
+          CHOCO_API_KEY: ${{ secrets.CHOCO_API_KEY }}
+        run: |
+          $nupkg = Get-ChildItem dist\matiec-choco\*.nupkg | Select-Object -First 1
+          if (-not $nupkg) { throw "kein Chocolatey-Paket in dist\matiec-choco" }
+          if (-not $env:CHOCO_API_KEY) {
+            Write-Host "CHOCO_API_KEY ist nicht gesetzt - $($nupkg.Name) wurde GEBAUT, nicht eingereicht."
+            Write-Host "Oeffentlich zu veroeffentlichen ist eine Entscheidung; sie faellt durch das Setzen des Schluessels."
+            exit 0
+          }
+          try {
+            Invoke-WebRequest -Uri "https://push.chocolatey.org/api/v2/package" -Method Put `
+              -Headers @{ "X-NuGet-ApiKey" = $env:CHOCO_API_KEY } `
+              -Form @{ package = $nupkg } -UseBasicParsing | Out-Null
+            Write-Output "  eingereicht:  $($nupkg.Name) - wann es sichtbar wird, entscheidet die Moderation"
+          } catch {
+            $code = $_.Exception.Response.StatusCode.value__
+            if ($code -eq 409) {
+              Write-Output "  unveraendert: $($nupkg.Name) (diese Version liegt dort schon)"
+            } else {
+              throw "Chocolatey-Upload $($nupkg.Name): HTTP $code"
+            }
+          }

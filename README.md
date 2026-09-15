@@ -199,6 +199,14 @@ matiec needs `--prerelease` because its revision lives in the prerelease field
 revision is the only thing that tells two builds apart. That registry resolves
 to 10.30.38.20 and is dead from outside; the public copy is the zip above.
 
+**winget and Chocolatey** are prepared but not published. The manifests
+(`tools/windows/winget/`) and the Chocolatey package (the same `.nupkg`, built
+with `--art choco`) come from the same pins, and CI checks the winget manifests
+against what `dl.zqel.org` actually serves — but neither goes out on its own:
+winget means a pull request against `microsoft/winget-pkgs`, Chocolatey means
+setting `CHOCO_API_KEY` and passing moderation. Publishing on someone else's
+public registry is a decision, not a side effect of a weekly build.
+
 Kani does not run on Windows at all, and Creusot builds but has no Why3 there.
 For those two, use Linux.
 

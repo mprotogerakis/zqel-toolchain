@@ -23,6 +23,8 @@
     "zweite Laufzeit mit eigenen Weitergaberegeln."
   ],
   "upstream_project": "https://github.com/beremiz/matiec",
+  "upstream_publisher": "matiec project (beremiz)",
+  "_why_publisher": "Wer das WERKZEUG herausgibt - nicht wer es paketiert. Chocolatey trennt authors und owners, winget verlangt Publisher; in beiden Feldern uns einzutragen waere eine Anmassung. Bewusst auf Projektebene und ohne Personennamen: das ist nachpruefbar, eine Autorenliste waere es mit der naechsten Revision nicht mehr.",
   "version": "0.1",
   "_why_version_and_revision": "matiec meldet seit Jahren `matiec version 0.1` - AC_INIT([matiec], [0.1]) in configure.ac, unveraendert ueber alle Revisionen. Die Version allein benennt ein Paket also NICHT eindeutig: zwei verschiedene Bauten lagen unter derselben Paketversion, und der Upload-Pfad haette den zweiten mit 409 als 'unveraendert' abgetan. Deshalb Version zuerst und die Revision dahinter: matiec-0.1-7949c0b-win_amd64.",
   "revision": "7949c0bda1787de9c7cacaa4876ede49f85262dd",
@@ -79,6 +81,8 @@
     "_why_no_vendored_texts": "matiec braucht kein gmp und kein mpfr. Alle drei beiliegenden DLLs kommen aus MSYS2-Paketen, die ihre Lizenztexte selbst ablegen (gemessen 2026-09-13), und matiecs eigene Texte stehen im Quellbaum.",
     "tool_licence": {
       "spdx": "GPL-3.0-or-later AND LGPL-3.0-or-later",
+      "url": "https://github.com/beremiz/matiec/blob/7949c0bda1787de9c7cacaa4876ede49f85262dd/COPYING",
+      "_why_url": "Die Lizenzseite, auf die Paketregistries verweisen (Chocolatey und winget verlangen eine URL, keinen Text). Gepinnt auf den Tag bzw. die Revision, NICHT auf master: eine Lizenzseite, die sich unter dem Verweis aendern kann, benennt nicht die Lizenz, unter der wir dieses Binary weitergeben. Bindend bleibt ohnehin der Text IM Paket (licenses/tool/).",
       "files_from_source_tree": [
         "COPYING",
         "lib/COPYING.LESSER"

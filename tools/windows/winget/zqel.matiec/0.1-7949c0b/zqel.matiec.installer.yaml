@@ -1,0 +1,11 @@
+# Erzeugt von tools/windows/write_winget_manifest.py - nicht von Hand pflegen.
+PackageIdentifier: zqel.matiec
+PackageVersion: 0.1-7949c0b
+InstallerLocale: en-US
+InstallerType: inno
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://dl.zqel.org/tools/matiec/0.1-7949c0b/matiec-0.1-7949c0b-win_amd64-setup.exe
+    InstallerSha256: E5DFEF45D51A296A3163A629CB0F2ACB5D7EF62879AA6A48FE08918548E803CE
+ManifestType: installer
+ManifestVersion: 1.6.0
