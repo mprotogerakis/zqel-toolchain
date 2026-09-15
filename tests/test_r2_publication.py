@@ -45,3 +45,72 @@ def test_publish_workflow_has_no_pull_request_trigger():
     assert "pull_request" not in trigger_block
     assert "secrets.R2_BUCKET" in workflow
     assert "if:" not in workflow
+
+
+def _ohne_netz(monkeypatch, *, liegt_da, etag=""):
+    """Der Uploader darf im Test weder das Netz noch Zugaenge brauchen."""
+    monkeypatch.setattr(publish_r2, "liegt_schon_da",
+                        lambda key: (liegt_da, etag))
+    hochgeladen = []
+    monkeypatch.setattr(publish_r2, "put",
+                        lambda file, **k: hochgeladen.append(k["key"]))
+    for name, wert in (("R2_ID", "x"), ("R2_SECRET", "y"),
+                       ("R2_ENDPOINT", "https://example.invalid"),
+                       ("R2_BUCKET", "zqel")):
+        monkeypatch.setenv(name, wert)
+    return hochgeladen
+
+
+def test_eine_veroeffentlichte_werkzeugadresse_wird_nicht_ersetzt(monkeypatch, tmp_path):
+    """Wer `gappa-1.4.0-win_amd64.zip` zitiert, meint bestimmte Bytes.
+
+    Gemessen am 2026-09-15: zwei Laeufe auf demselben Pin haben dieselbe
+    Adresse mit verschiedenen Bytes belegt, weil Zip und Inno-Installer
+    Zeitstempel tragen. Seitdem liegt hier die Regel statt der Gewohnheit.
+    """
+    datei = tmp_path / "gappa-1.4.0-win_amd64.zip"
+    datei.write_bytes(b"neuer Bau")
+    hochgeladen = _ohne_netz(monkeypatch, liegt_da=True, etag="fremdes-etag")
+    publish_r2.main(["--prefix", "tools/gappa/1.4.0", str(datei)])
+    assert hochgeladen == [], "die veroeffentlichte Fassung wurde ersetzt"
+
+
+def test_navigation_darf_sich_weiter_bewegen(monkeypatch, tmp_path):
+    """latest.json ist Navigation, keine Identitaet - es MUSS wandern."""
+    datei = tmp_path / "latest.json"
+    datei.write_text("{}")
+    hochgeladen = _ohne_netz(monkeypatch, liegt_da=True, etag="egal")
+    publish_r2.main(["--prefix", "flake", str(datei)])
+    assert hochgeladen == ["flake/latest.json"]
+
+
+def test_eine_neue_version_wird_ganz_normal_veroeffentlicht(monkeypatch, tmp_path):
+    datei = tmp_path / "gappa-1.8.3-win_amd64.zip"
+    datei.write_bytes(b"erste Fassung")
+    hochgeladen = _ohne_netz(monkeypatch, liegt_da=False)
+    publish_r2.main(["--prefix", "tools/gappa/1.8.3", str(datei)])
+    assert hochgeladen == ["tools/gappa/1.8.3/gappa-1.8.3-win_amd64.zip"]
+
+
+def test_abweichende_bytes_werden_genannt_nicht_verschwiegen(monkeypatch, tmp_path, capsys):
+    """Nicht ueberschreiben heisst nicht schweigen: die Drift gehoert ins Log."""
+    datei = tmp_path / "gappa-1.4.0-win_amd64.zip"
+    datei.write_bytes(b"neuer Bau")
+    _ohne_netz(monkeypatch, liegt_da=True, etag="0" * 32)
+    publish_r2.main(["--prefix", "tools/gappa/1.4.0", str(datei)])
+    ausgabe = capsys.readouterr().out
+    assert "::warning::" in ausgabe and "andere Bytes" in ausgabe
+
+
+def test_eine_unklare_antwort_ist_kein_freibrief(monkeypatch, tmp_path):
+    """HTTP 403 oder 500 heissen 'wir wissen es nicht'. Dann wird nicht
+    ueberschrieben, sondern angehalten - sonst entscheidet eine Stoerung
+    darueber, ob eine Zusage stehen bleibt."""
+    import urllib.error
+
+    def kaputt(anfrage, **egal):
+        raise urllib.error.HTTPError("x", 503, "kaputt", {}, None)
+
+    monkeypatch.setattr(publish_r2.urllib.request, "urlopen", kaputt)
+    with pytest.raises(SystemExit, match="HTTP 503"):
+        publish_r2.liegt_schon_da("tools/gappa/1.4.0/x.zip")
