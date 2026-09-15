@@ -47,6 +47,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "build_matiec exit $LASTEXITCODE" }
           $sw.Stop()
           "Dauer_min: " + [math]::Round($sw.Elapsed.TotalMinutes, 1)
+          # Dasselbe Stage-Verzeichnis noch einmal als .nupkg - in ein EIGENES
+          # Ausgabeverzeichnis, weil die Schritte darunter alles aus
+          # dist\matiec hochladen. Ein .nupkg in der generischen Registry und
+          # auf R2 waere ein zweites Zip mit fremdem Namen; ein Paket wird es
+          # erst am NuGet-Endpunkt.
+          python tools\windows\pack_nupkg.py --pin matiec-pin.json `
+            --stage dist\matiec\stage --out dist\matiec-nuget
+          if ($LASTEXITCODE -ne 0) { throw "pack_nupkg exit $LASTEXITCODE" }
           $p = Get-Content matiec-pin.json -Raw | ConvertFrom-Json
           $v = "$($p.version)-$($p.revision.Substring(0,7))"
           "MATIEC_REV=$v" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
@@ -140,6 +148,63 @@ jobs:
             }
           }
           Write-Output $base
+
+      - name: In die NuGet-Registry
+        # WARUM EIN ZWEITER UPLOAD UND NICHT EINFACH MIT IN DIE GENERISCHE:
+        # Ein .nupkg unter einer generischen Adresse ist eine Datei zum
+        # Herunterladen - dafuer gibt es das Zip laengst. Erst der
+        # NuGet-Endpunkt macht daraus eine QUELLE, aus der eine Kette
+        # `Zqel.Matiec.win-x64 0.1.0-rev7949c0b` aufloest und diese Angabe
+        # festhalten kann.
+        #
+        # Die Revision steht im VORABTEIL der Version, weil matiec fuer jede
+        # Revision `0.1` meldet (matiec-pin.json sagt warum). Das heisst
+        # zugleich: `dotnet add package` findet es nur mit `--prerelease` -
+        # richtig so, ein Werkzeug ohne Release ist keins mit Release.
+        #
+        # NICHT nach R2: eine einzelne Datei ohne index.json ist kein Feed.
+        #
+        # `-Form` gibt es erst ab PowerShell 6; diese Schritte laufen unter
+        # pwsh (7), die Bauskripte unter Windows PowerShell 5.1. Deshalb steht
+        # der Upload hier und nicht im Bauskript.
+        #
+        # GEMESSEN am 2026-09-15 (Job 3501 auf ef16b6b): der Endpunkt nimmt
+        # multipart an, und er nimmt die VORABVERSION an - die Registry
+        # fuehrt Zqel.Matiec.win-x64 0.1.0-rev7949c0b. Das war die eine
+        # offene Frage gegenueber gappa, denn `0.1.0-rev...` ist SemVer mit
+        # Vorabteil, und ein Feed darf das ablehnen. Von aussen
+        # zurueckgeholt: 41 Eintraege, iec2c.exe, sechs Lizenztexte und der
+        # Quell-Tarball mit dem sha256 aus dem Pin (730477 Bytes).
+        shell: pwsh
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+        run: |
+          # Kein stilles Ueberspringen, aber auch kein zweites Urteil: der
+          # Schritt davor hat ein fehlendes Token schon beurteilt und bricht
+          # auf main ab. Wer ohne Token bis hierher kommt, ist auf einem
+          # Zweig, der nicht veroeffentlichen darf.
+          if (-not $env:PACKAGE_TOKEN) {
+            Write-Host "kein PACKAGE_TOKEN - kein NuGet-Upload (siehe Schritt davor)"
+            exit 0
+          }
+          $nupkg = Get-ChildItem dist\matiec-nuget\*.nupkg | Select-Object -First 1
+          if (-not $nupkg) { throw "kein .nupkg in dist\matiec-nuget" }
+          $uri = "https://git.ei.intern.hs-duesseldorf.de/api/packages/proto/nuget"
+          $h = @{ Authorization = "token $env:PACKAGE_TOKEN"; "X-NuGet-ApiKey" = $env:PACKAGE_TOKEN }
+          try {
+            Invoke-WebRequest -Uri $uri -Method Put -Headers $h `
+              -Form @{ package = $nupkg } -UseBasicParsing | Out-Null
+            Write-Output "  neu:          $($nupkg.Name)"
+          } catch {
+            $code = $_.Exception.Response.StatusCode.value__
+            if ($code -eq 409) {
+              # Wie beim Zip: derselbe Pin baut dasselbe Paket.
+              Write-Output "  unveraendert: $($nupkg.Name) (schon veroeffentlicht)"
+            } else {
+              throw "NuGet-Upload $($nupkg.Name): HTTP $code"
+            }
+          }
+          Write-Output "$uri/index.json"
 
       # Nach dl.zqel.org - dem OEFFENTLICHEN Ablageort.
       #

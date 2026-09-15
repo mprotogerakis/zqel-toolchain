@@ -183,6 +183,22 @@ matiec:
 PS> setx MATIEC_DIR "C:\Program Files\matiec"
 ```
 
+Inside the HSD network the same two builds also exist as NuGet packages —
+`Zqel.Gappa.win-x64` and `Zqel.Matiec.win-x64`, the binaries under `tools/`
+with their licence texts, `NOTICE.txt`, `SOURCES.txt` and `PIN.txt` beside
+them. They are for build chains that want to *name* a version rather than
+unpack a zip:
+
+```powershell
+PS> dotnet nuget add source https://git.ei.intern.hs-duesseldorf.de/api/packages/proto/nuget/index.json -n zqel
+PS> dotnet add package Zqel.Matiec.win-x64 --prerelease
+```
+
+matiec needs `--prerelease` because its revision lives in the prerelease field
+(`0.1.0-rev7949c0b`) — it reports version `0.1` for every revision, so the
+revision is the only thing that tells two builds apart. That registry resolves
+to 10.30.38.20 and is dead from outside; the public copy is the zip above.
+
 Kani does not run on Windows at all, and Creusot builds but has no Why3 there.
 For those two, use Linux.
 
