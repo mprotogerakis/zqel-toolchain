@@ -307,15 +307,15 @@ marked `missing` is something this project promises and does not
 currently deliver; that is deliberate, so the gap is visible here
 rather than in someone's terminal.
 
-45 of 51 addresses answered, 903.0 MB in total.
+49 of 51 addresses answered, 1037.4 MB in total.
 
-The `missing` rows are all zqel packages, and they have two causes,
-both tracked in [the zqel repository](https://github.com/mprotogerakis/LoLa/issues):
-the Linux build does not currently produce a startable binary, and
-the macOS build has no runner registered against that repository.
-The toolchain itself is complete.
+The two `missing` rows are the Linux distribution packages, the `.deb`
+and the `.rpm`; they are tracked in
+[the zqel repository](https://github.com/mprotogerakis/LoLa/issues).
+The standalone builds for Linux and macOS, which this paragraph listed as
+missing until 2026-09-17, are published. The toolchain itself is complete.
 
-| Group | File | Platform | Size (measured 2026-09-14) |
+| Group | File | Platform | Size (measured 2026-09-17) |
 | --- | --- | --- | --- |
 | cbmc 6.4.0 (mirrored) | [cbmc-6.4.0-win64.msi](https://dl.zqel.org/tools/cbmc/6.4.0/cbmc-6.4.0-win64.msi) | Windows | 25.7 MB |
 |  | [cbmc-6.4.0-win64.msi.notice.txt](https://dl.zqel.org/tools/cbmc/6.4.0/cbmc-6.4.0-win64.msi.notice.txt) | — | 1 KB |
@@ -348,12 +348,12 @@ The toolchain itself is complete.
 | nix binary cache | [nix-cache-info](https://dl.zqel.org/nix/nix-cache-info) | Linux, macOS | 21 B |
 | zqel devShell flake | [fe62a13d860c….tar.gz](https://dl.zqel.org/zqel/flake/fe62a13d860c2d80181107e9b62eac74f24c07a119d5805db6479ff9d09d0bd7.tar.gz) | Linux, macOS | 11 KB ·moves |
 |  | [latest.json](https://dl.zqel.org/zqel/flake/latest.json) | — | 566 B |
-| zqel (latest) | zqel-latest-linux-x86_64.tar.gz | Linux x86_64 | **missing (404)** |
-|  | zqel-latest-linux-x86_64.tar.gz.sha256 | Linux x86_64 | **missing (404)** |
-|  | [zqel-latest-windows-amd64.zip](https://dl.zqel.org/zqel/latest/zqel-latest-windows-amd64.zip) | Windows x86_64 | 59.9 MB |
+| zqel (latest) | [zqel-latest-linux-x86_64.tar.gz](https://dl.zqel.org/zqel/latest/zqel-latest-linux-x86_64.tar.gz) | Linux x86_64 | 74.6 MB |
+|  | [zqel-latest-linux-x86_64.tar.gz.sha256](https://dl.zqel.org/zqel/latest/zqel-latest-linux-x86_64.tar.gz.sha256) | Linux x86_64 | 98 B |
+|  | [zqel-latest-windows-amd64.zip](https://dl.zqel.org/zqel/latest/zqel-latest-windows-amd64.zip) | Windows x86_64 | 62.5 MB |
 |  | [zqel-latest-windows-amd64.zip.sha256](https://dl.zqel.org/zqel/latest/zqel-latest-windows-amd64.zip.sha256) | Windows x86_64 | 66 B |
-|  | zqel-latest-macos-arm64.tar.gz | macOS arm64 | **missing (404)** |
-|  | zqel-latest-macos-arm64.tar.gz.sha256 | macOS arm64 | **missing (404)** |
+|  | [zqel-latest-macos-arm64.tar.gz](https://dl.zqel.org/zqel/latest/zqel-latest-macos-arm64.tar.gz) | macOS arm64 | 57.3 MB |
+|  | [zqel-latest-macos-arm64.tar.gz.sha256](https://dl.zqel.org/zqel/latest/zqel-latest-macos-arm64.tar.gz.sha256) | macOS arm64 | 97 B |
 | zqel (packages) | zqel-latest-amd64.deb | Linux x86_64 | **missing (404)** |
 |  | zqel-latest-x86_64.rpm | Linux x86_64 | **missing (404)** |
 | Z3 pin (z3-nightly-0d4a2db) | [z3-pin.json](https://dl.zqel.org/zqel/z3/z3-nightly-0d4a2db/z3-pin.json) | — | 9 KB |
