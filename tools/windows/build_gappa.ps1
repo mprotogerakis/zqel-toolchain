@@ -70,7 +70,7 @@ Copy-LicenceTexts -Build $b -Stage $stage -SourceTree $tree `
                   -RepoLicenceDir (Join-Path $here "licenses") -MsysRoot $msys
 Write-NoticeAndSources -Pin $pin -Prov $prov -Stage $stage -ToolName "Gappa" `
     -Bezeichnung "Gappa $version" -SrcMeta $srcMeta `
-    -Rezept "tools/windows/build_gappa.ps1 und tools/windows/build_gappa.sh"
+    -Rezept "tools/windows/build_gappa.ps1 and tools/windows/build_gappa.sh"
 
 Write-Output "[6/7] Rauchtest (aus dem Paket heraus, ohne MSYS2 im PATH)"
 # Die Probe faehrt GEGEN DAS PAKET, nicht gegen den Bauplatz, und mit nacktem

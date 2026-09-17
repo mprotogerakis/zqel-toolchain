@@ -40,7 +40,7 @@
   },
   "windows_build": {
     "toolchain": "MSYS2 / MINGW64",
-    "link": "dynamisch",
+    "link": "dynamic",
     "_why_dynamic": "Wie bei gappa: die beiliegenden GCC-Laufzeitbibliotheken stehen unter GPL-3.0 mit Runtime Library Exception bzw. LGPL-2.1. Dynamisch plus beiliegende DLLs ist der Weg, bei dem sich die Bibliothek austauschen laesst.",
     "_build_note": "Anders als gappa liefert matiec kein fertiges `configure` mit - `autoreconf -i` muss zuerst laufen, und dafuer braucht die Baumaschine autoconf, automake, flex und bison. Gebaut wird mit `make`, nicht mit `remake`.",
     "runtime_dlls": {

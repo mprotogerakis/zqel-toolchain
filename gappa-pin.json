@@ -42,7 +42,7 @@
   },
   "windows_build": {
     "toolchain": "MSYS2 / MINGW64",
-    "link": "dynamisch",
+    "link": "dynamic",
     "_why_dynamic": "GMP und MPFR stehen unter LGPLv3. Statisch gelinkt laeuft gappa.exe zwar allein (gemessen: 21434128 Bytes, keine fremde DLL), verpflichtet uns aber, eine Relink-Moeglichkeit beizulegen. Dynamisch plus die fuenf DLLs ist der lizenzsaubere Weg und der, den das Paket geht.",
     "runtime_dlls": {
       "libgcc_s_seh-1.dll": {
