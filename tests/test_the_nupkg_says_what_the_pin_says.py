@@ -129,6 +129,12 @@ def test_das_choco_paket_traegt_was_die_moderation_verlangt(tmp_path):
     assert pin["windows_build"]["tool_licence"]["url"] in spec
     assert "packageSourceUrl" in spec
 
+    # Nachgefordert am 2026-09-17 (zqel-gappa 1.4.0, "Waiting for Maintainer").
+    # Und zwar der Herausgeber des WERKZEUGS - wer ein Binary weitergibt,
+    # erwirbt daran kein Urheberrecht.
+    assert (f"<copyright>Copyright (c) {pin['upstream_publisher']}</copyright>"
+            in spec)
+
     # Die Verifikation nennt NUR Adressen, die aus den Pins folgen - sonst
     # schickt sie einen Moderator an eine Stelle, an der nichts liegt.
     for adresse in pack_nupkg.oeffentliche_adressen("gappa"):

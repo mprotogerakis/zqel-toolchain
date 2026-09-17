@@ -126,6 +126,12 @@ def paketversion(pin: dict) -> str:
 #: Chocolatey will mehr Felder als NuGet - und eine LizenzURL, keinen Text.
 #: `packageSourceUrl` ist das, wonach die Moderation zuerst fragt: wo steht
 #: das Rezept, aus dem dieses Paket entstanden ist.
+#:
+#: `copyright` ist bei Chocolatey PFLICHT, sobald ein Paket fremde Software
+#: mitbringt - die Moderation hat es am 2026-09-17 fuer zqel-gappa 1.4.0
+#: nachgefordert. Es nennt denselben wie `authors`: den Herausgeber des
+#: WERKZEUGS, nicht uns. Wer ein Binary weitergibt, erwirbt daran kein
+#: Urheberrecht.
 CHOCO_NUSPEC = """<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
@@ -136,6 +142,7 @@ CHOCO_NUSPEC = """<?xml version="1.0" encoding="utf-8"?>
     <owners>zqel-toolchain</owners>
     <projectUrl>{upstream}</projectUrl>
     <packageSourceUrl>{projekt}</packageSourceUrl>
+    <copyright>{copyright}</copyright>
     <licenseUrl>{lizenz_url}</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <summary>{zusammenfassung}</summary>
@@ -230,6 +237,7 @@ def choco_nuspec(pin: dict, werkzeug: str) -> str:
         # die Sprache, nicht wer es schreibt.
         titel=f"{werkzeug} (Windows x86_64, pinned to the zqel toolchain)",
         upstream_autor=escape(pin["upstream_publisher"]),
+        copyright=escape(f"Copyright (c) {pin['upstream_publisher']}"),
         upstream=escape(pin["upstream_project"]),
         projekt=PROJEKT,
         lizenz_url=escape(bau["tool_licence"]["url"]),
