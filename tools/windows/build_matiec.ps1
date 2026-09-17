@@ -80,7 +80,7 @@ Copy-LicenceTexts -Build $b -Stage $stage -SourceTree $tree `
                   -RepoLicenceDir (Join-Path $here "licenses") -MsysRoot $msys
 Write-NoticeAndSources -Pin $pin -Prov $prov -Stage $stage -ToolName "matiec" `
     -Bezeichnung "matiec $($pin.version) ($kurz)" -SrcMeta $srcMeta `
-    -Rezept "tools/windows/build_matiec.ps1 und tools/windows/build_matiec.sh"
+    -Rezept "tools/windows/build_matiec.ps1 and tools/windows/build_matiec.sh"
 
 Write-Output "[6/7] Rauchtest (aus dem Paket heraus, ohne MSYS2 im PATH)"
 $smoke = Join-Path $here "matiec-smoke"

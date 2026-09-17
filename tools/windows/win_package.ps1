@@ -188,7 +188,15 @@ function Copy-LicenceTexts {
 function Write-NoticeAndSources {
     <#  Beide Texte entstehen aus DERSELBEN Liste wie die kopierten Dateien.
         Zwei Listen hiessen: eine DLL kann mitfahren, ohne genannt zu werden -
-        und genannt werden ist hier die Auflage, nicht die Hoeflichkeit. #>
+        und genannt werden ist hier die Auflage, nicht die Hoeflichkeit.
+
+        ENGLISCH SEIT DEM 2026-09-17, und aus demselben Grund wie die
+        Chocolatey-Felder und VERIFICATION.txt: wer es liest, entscheidet die
+        Sprache, nicht wer es schreibt. Diese drei Dateien fahren in jedem
+        Zip, jedem Installer und jedem Paket mit - ihr Publikum sitzt nicht
+        in Duesseldorf. Die Chocolatey-Moderation hat es angemerkt; richtig
+        war es schon vorher. Der Code drumherum bleibt deutsch: den lesen
+        wir. #>
     param([Parameter(Mandatory)]$Pin,
           [Parameter(Mandatory)][hashtable]$Prov,
           [Parameter(Mandatory)][string]$Stage,
@@ -202,70 +210,70 @@ function Write-NoticeAndSources {
     foreach ($p in $b.runtime_dlls.PSObject.Properties) {
         $m = $Prov[$p.Name]
         $zeilen += ("  {0,-20} {1,-24} {2}" -f $p.Name, $p.Value.library, $m.lizenzen)
-        $zeilen += ("  {0,-20} aus {1} {2}" -f "", $m.paket, $m.version)
-        $zeilen += ("  {0,-20} Texte: {1}" -f "", (@($p.Value.licence_files) -join ", "))
+        $zeilen += ("  {0,-20} from {1} {2}" -f "", $m.paket, $m.version)
+        $zeilen += ("  {0,-20} texts: {1}" -f "", (@($p.Value.licence_files) -join ", "))
         $quellen += ("  " + $p.Name)
-        $quellen += ("    MSYS2-Paket:   " + $m.paket + " " + $m.version)
-        $quellen += ("    Bauanleitung:  https://github.com/msys2/MINGW-packages/tree/master/" + $m.paket)
+        $quellen += ("    MSYS2 package: " + $m.paket + " " + $m.version)
+        $quellen += ("    Build recipe:  https://github.com/msys2/MINGW-packages/tree/master/" + $m.paket)
         $quellen += ("    Upstream:      " + $m.url)
-        $quellen += ("    Quelle holen:  pacman -S --downloadonly " + $m.paket + "   (MSYS2), oder vom Upstream")
+        $quellen += ("    Get source:    pacman -S --downloadonly " + $m.paket + "   (MSYS2), or from upstream")
         $quellen += ""
     }
     $dllZeilen = $zeilen -join "`r`n"
     $texte = (@($b.tool_licence.files_from_source_tree) | ForEach-Object { "licenses\tool\" + (Split-Path $_ -Leaf) }) -join ", "
 
     $notice = @"
-$Bezeichnung fuer Windows x86_64
+$Bezeichnung for Windows x86_64
 
-DIESES PROGRAMM
-  $ToolName steht unter $($b.tool_licence.spdx).
-  Die Lizenztexte liegen bei: $texte
-  Die Lizenzseite des Installers zeigt COPYING.
+THIS PROGRAM
+  $ToolName is licensed under $($b.tool_licence.spdx).
+  The licence texts ship with it: $texte
+  The installer shows COPYING on its licence page.
 
-  Uebersetzt aus:  $($SrcMeta.url)
-  sha256:          $($SrcMeta.sha256)
-  Upstream:        $($Pin.upstream_project)
-  Die Quelle liegt unveraendert neben diesem Paket.
+  Compiled from: $($SrcMeta.url)
+  sha256:        $($SrcMeta.sha256)
+  Upstream:      $($Pin.upstream_project)
+  The source is published unchanged beside this package.
 
-BEILIEGENDE BIBLIOTHEKEN, dynamisch gelinkt
+BUNDLED LIBRARIES, dynamically linked
 $dllZeilen
 
-  Sie liegen bei und sind NICHT einkompiliert. Das ist der Grund, warum dieses
-  Paket DLLs mitbringt statt eines einzelnen Binaries: die LGPL verlangt, dass
-  sich die Bibliotheken austauschen lassen. Das geht hier, indem die DLL im
-  Installationsverzeichnis durch eine schnittstellenkompatible ersetzt wird.
+  They ship beside the binary and are NOT compiled into it. That is why this
+  package carries DLLs instead of a single executable: the LGPL requires that
+  the libraries can be replaced. Here that works by replacing the DLL in the
+  installation directory with an interface-compatible one.
 
-  Gebaut wurden sie nicht von uns. Sie stammen als fertige Pakete aus MSYS2;
-  woher ihr Quellcode zu beziehen ist, steht in SOURCES.txt.
+  We did not build them. They arrive as finished packages from MSYS2; where to
+  obtain their source is written in SOURCES.txt.
 
 INSTALLER
-  Erzeugt mit Inno Setup (https://jrsoftware.org/isinfo.php).
+  Built with Inno Setup (https://jrsoftware.org/isinfo.php).
 
-Alle Lizenztexte: das Verzeichnis licenses\ neben dieser Datei.
+All licence texts: the licenses\ directory beside this file.
 "@
     Set-Content -Path (Join-Path $Stage "NOTICE.txt") -Value $notice -Encoding ascii
 
     $sources = @"
-Woher der uebersetzte Quellcode stammt
-======================================
+Where the compiled source code comes from
+=========================================
 
-Gebaut am $(Get-Date -Format "yyyy-MM-dd") auf einer MSYS2/MINGW64-Maschine.
+Built on $(Get-Date -Format "yyyy-MM-dd") on an MSYS2/MINGW64 machine.
 
-$($Bezeichnung.ToUpper()) - der Teil, den WIR uebersetzt haben
-  Quelle:   $($SrcMeta.url)
+$($Bezeichnung.ToUpper()) - the part WE compiled
+  Source:   $($SrcMeta.url)
   sha256:   $($SrcMeta.sha256)
-  Groesse:  $($SrcMeta.size) Bytes
+  Size:     $($SrcMeta.size) bytes
   Upstream: $($Pin.upstream_project)
 
-  Unveraendert uebersetzt - wir tragen keine Patches. Die Bauanleitung ist
-  oeffentlich: $Rezept im zqel-Repository.
+  Compiled unmodified - we carry no patches. The build recipe is public:
+  $Rezept in the zqel repository.
 
-  Dieselbe Quelle liegt in derselben Paketversion neben diesem Paket, damit
-  Quelle und Binaerdatei nicht auf verschiedenen Servern liegen.
+  The same source ships in the same package version beside this package, so
+  that source and binary do not sit on different servers.
 
-BEILIEGENDE BIBLIOTHEKEN - von uns NICHT uebersetzt, nur weitergegeben
+BUNDLED LIBRARIES - NOT compiled by us, only passed on
 $($quellen -join "`r`n")
-Die Versionsangaben oben sind zum Bauzeitpunkt GEMESSEN, nicht gepflegt.
+The versions above were MEASURED at build time, not hand-maintained.
 "@
     Set-Content -Path (Join-Path $Stage "SOURCES.txt") -Value $sources -Encoding ascii
 
@@ -280,14 +288,14 @@ Die Versionsangaben oben sind zum Bauzeitpunkt GEMESSEN, nicht gepflegt.
 $Bezeichnung
 $kennung
 upstream_project    $($Pin.upstream_project)
-quelle_sha256       $($SrcMeta.sha256)
-gebaut_am           $(Get-Date -Format "yyyy-MM-dd")
+source_sha256       $($SrcMeta.sha256)
+built_on            $(Get-Date -Format "yyyy-MM-dd")
 toolchain           $($b.toolchain)
-link                $($b.link)
+linking             $($b.link)
 
-Gebunden ist diese Fassung an das, was die devShell fuehrt - nicht an die
-neueste. Der Pin im Repository sagt warum.
-Lizenzen: NOTICE.txt und licenses\. Herkunft des Quellcodes: SOURCES.txt.
+This build is pinned to what the zqel devShell runs - not to the latest
+release. The pin in the repository says why.
+Licences: NOTICE.txt and licenses\. Where the source came from: SOURCES.txt.
 "@
     Set-Content -Path (Join-Path $Stage "PIN.txt") -Value $pinTxt -Encoding ascii
 }

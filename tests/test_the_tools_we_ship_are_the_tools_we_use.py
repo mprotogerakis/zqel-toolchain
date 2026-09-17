@@ -225,7 +225,7 @@ def test_the_package_ships_dlls_because_of_the_licence(tool):
     Statisch laeuft gappa auch (gemessen: 21434128 Bytes, keine fremde DLL),
     schuldet aber eine Relink-Moeglichkeit."""
     b = _pin(tool)["windows_build"]
-    assert b["link"] == "dynamisch"
+    assert b["link"] == "dynamic"
     assert "LGPL" in b["_why_dynamic"]
     shared = _SHARED.read_text(encoding="utf-8")
     for name, meta in b["runtime_dlls"].items():
