@@ -114,3 +114,34 @@ def test_eine_unklare_antwort_ist_kein_freibrief(monkeypatch, tmp_path):
     monkeypatch.setattr(publish_r2.urllib.request, "urlopen", kaputt)
     with pytest.raises(SystemExit, match="HTTP 503"):
         publish_r2.liegt_schon_da("tools/gappa/1.4.0/x.zip")
+
+
+def test_die_existenzfrage_geht_am_cache_vorbei(monkeypatch):
+    """Ein HEAD auf die blanke Adresse fragt den Cache, nicht den Bucket.
+
+    GEMESSEN am 2026-09-17 (Lauf #85): vier Objekte von Hand geloescht, dann
+    veroeffentlicht. Die beiden .sha256 waren aus dem Cloudflare-Cache
+    gefallen und wurden geschrieben; Zip und Installer antworteten noch mit
+    200 aus dem Cache und galten als "liegt schon da". Zurueck blieben zwei
+    Beilagen, die den Hash von Dateien nennen, die es nicht gibt - und ein
+    gruener Lauf.
+    """
+    gesehen = []
+
+    class Antwort:
+        headers = {"ETag": '"x"'}
+        def __enter__(self): return self
+        def __exit__(self, *egal): return False
+
+    def merke(anfrage, **egal):
+        gesehen.append(anfrage.full_url)
+        return Antwort()
+
+    monkeypatch.setattr(publish_r2.urllib.request, "urlopen", merke)
+    publish_r2.liegt_schon_da("tools/gappa/1.4.0/x.zip")
+    publish_r2.liegt_schon_da("tools/gappa/1.4.0/x.zip")
+
+    assert all("nocache=" in u for u in gesehen), \
+        "ohne Cache-Buster beantwortet der Cache die Frage nach dem Bucket"
+    assert gesehen[0] != gesehen[1], \
+        "ein FESTER Buster waere nach dem ersten Mal selbst wieder im Cache"

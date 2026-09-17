@@ -15,6 +15,7 @@ import os
 import pathlib
 import urllib.error
 import urllib.request
+import uuid
 
 EMPTY_SHA256 = hashlib.sha256(b"").hexdigest()
 
@@ -95,8 +96,21 @@ def liegt_schon_da(key: str) -> tuple[bool, str]:
     zusammengesetztes ETag (Suffix -N) traegt diese Aussage nicht und wird als
     unbekannt behandelt.
     """
-    req = urllib.request.Request(f"{OEFFENTLICH}/{key}", method="HEAD",
-                                 headers={"User-Agent": "zqel-publish-r2"})
+    # AM CACHE VORBEI, und das ist keine Vorsicht, sondern eine Messung:
+    # dl.zqel.org liegt hinter Cloudflare, und ein HEAD auf die blanke
+    # Adresse beantwortet die Frage "liegt das im Bucket?" mit dem, was im
+    # CACHE liegt. Gemessen am 2026-09-17 (Lauf #85): vier Objekte von Hand
+    # geloescht, dann veroeffentlicht - die beiden .sha256 waren aus dem
+    # Cache gefallen und wurden geschrieben, Zip und Installer antworteten
+    # noch mit 200 aus dem Cache und wurden uebersprungen. Ergebnis: zwei
+    # Beilagen, die den Hash von Dateien nennen, die es nicht gibt, und zwei
+    # tote Downloadadressen in der README. Der Lauf war gruen.
+    #
+    # Der Parameter gehoert in den Cache-Schluessel, deshalb wirkt er;
+    # `Cache-Control: no-cache` allein tut es bei Cloudflare nicht.
+    req = urllib.request.Request(
+        f"{OEFFENTLICH}/{key}?nocache={uuid.uuid4().hex}", method="HEAD",
+        headers={"User-Agent": "zqel-publish-r2", "Cache-Control": "no-cache"})
     try:
         with urllib.request.urlopen(req, timeout=30) as antwort:
             return True, antwort.headers.get("ETag", "").strip('"')
