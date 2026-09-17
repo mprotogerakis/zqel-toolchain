@@ -6,6 +6,6 @@ InstallerType: inno
 Installers:
   - Architecture: x64
     InstallerUrl: https://dl.zqel.org/tools/gappa/1.4.0/gappa-1.4.0-win_amd64-setup.exe
-    InstallerSha256: 23BE824E9C080AB8D971356879FFC4326F03DB3CA767B8B4B4D522217C2A86BD
+    InstallerSha256: 9BEA44DF76C9A2D3F59FE033C50C48F42DEFCC920C621DA709A03AC80CA8CB6F
 ManifestType: installer
 ManifestVersion: 1.6.0
