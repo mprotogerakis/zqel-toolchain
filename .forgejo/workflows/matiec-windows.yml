@@ -89,7 +89,11 @@ jobs:
           }
           $oben = $head[0].sha
           Write-Output "gepinnt:  $($pin.revision)"
-          Write-Output "upstream: $oben ($($head[0].commit.author.date.Substring(0,10)))"
+          # ([datetime]) statt .Substring - siehe gappa-windows.yml: unter
+          # pwsh 7 ist das schon ein [DateTime], und der Schritt starb daran
+          # still, weil er `continue-on-error` traegt.
+          $wann = ([datetime]$head[0].commit.author.date).ToString("yyyy-MM-dd")
+          Write-Output "upstream: $oben ($wann)"
           if ($oben -ne $pin.revision) {
             Write-Output "::warning::Upstream ist weiter. Der Pin bleibt, wo die Flake ihn haelt - erst flake.nix heben, dann diesen Pin, sonst uebersetzt Windows mit einem anderen iec2c."
           } else {

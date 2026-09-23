@@ -86,7 +86,15 @@ jobs:
           }
           $latest = $tags[0].name
           Write-Output "gepinnt:  $($pin.upstream_tag)"
-          Write-Output "upstream: $latest ($($tags[0].commit.created_at.Substring(0,10)))"
+          # ([datetime]) statt .Substring: `Invoke-RestMethod` unter pwsh 7
+          # macht aus einem ISO-8601-String ein [DateTime], und das hat kein
+          # Substring. Der Schritt ist `continue-on-error`, also war der
+          # Absturz nicht rot - er hat nur nichts mehr gemeldet. Ein Melder,
+          # der still ausfaellt, ist schlimmer als keiner: der woechentliche
+          # Lauf ist genau dafuer da, Drift zu MELDEN.
+          # Der Cast traegt beide Faelle, String wie DateTime.
+          $wann = ([datetime]$tags[0].commit.created_at).ToString("yyyy-MM-dd")
+          Write-Output "upstream: $latest ($wann)"
           if ($latest -ne $pin.upstream_tag) {
             Write-Output "::warning::Upstream ist bei $latest, der Pin bei $($pin.upstream_tag). Eine Prover-Version aendert Verdikte - erst die devShell heben, dann den Pin."
           } else {
