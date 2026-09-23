@@ -232,6 +232,14 @@ jobs:
         # NuGet-v2-Feed, und `choco push` ist darunter genau dieses PUT mit
         # X-NuGet-ApiKey. Ein zweites Paketsystem auf der Baumaschine waere
         # eine Zeile in deps.winget.json fuer nichts.
+        #
+        # NUR BEI EINEM LAUF VON HAND (seit 2026-09-23). Seit R2 unter
+        # tools/ ersetzt statt liegen zu lassen, wuerde der woechentliche
+        # Lauf sonst jeden Montag ein neues Paket in die Moderation
+        # schieben und die Warteschlange zuruecksetzen. Der Kommentar oben
+        # sagt seit jeher, das sei "eine Entscheidung, die jemand trifft" -
+        # hier steht sie jetzt auch im Zweig, nicht nur in der Prosa.
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         shell: pwsh
         env:
           CHOCO_API_KEY: ${{ secrets.CHOCO_API_KEY }}

@@ -61,18 +61,36 @@ def _ohne_netz(monkeypatch, *, liegt_da, etag=""):
     return hochgeladen
 
 
-def test_eine_veroeffentlichte_werkzeugadresse_wird_nicht_ersetzt(monkeypatch, tmp_path):
-    """Wer `gappa-1.4.0-win_amd64.zip` zitiert, meint bestimmte Bytes.
+def test_eine_werkzeugadresse_traegt_den_letzten_bau(monkeypatch, tmp_path):
+    """Umgedreht am 2026-09-23 - vorher blieb hier die erste Fassung liegen.
 
-    Gemessen am 2026-09-15: zwei Laeufe auf demselben Pin haben dieselbe
-    Adresse mit verschiedenen Bytes belegt, weil Zip und Inno-Installer
-    Zeitstempel tragen. Seitdem liegt hier die Regel statt der Gewohnheit.
+    Der Gedanke war richtig: wer `gappa-1.4.0-win_amd64.zip` zitiert, meint
+    bestimmte Bytes. Die Wirkung war es nicht. Der Windows-Bau ist nicht
+    reproduzierbar, also wich JEDER Lauf ab, also blieb immer der alte Stand
+    liegen - waehrend das Chocolatey-Paket daneben der neue war. Genau diese
+    Schere hat zqel-gappa 1.4.0 am 21.09. aus der Freigabe geworfen.
+
+    Wer bestimmte Bytes meint, nennt seither ihren sha256, nicht ihre
+    Adresse: in VERIFICATION.txt, in der .sha256-Beilage, im
+    winget-Manifest.
     """
     datei = tmp_path / "gappa-1.4.0-win_amd64.zip"
     datei.write_bytes(b"neuer Bau")
     hochgeladen = _ohne_netz(monkeypatch, liegt_da=True, etag="fremdes-etag")
     publish_r2.main(["--prefix", "tools/gappa/1.4.0", str(datei)])
-    assert hochgeladen == [], "die veroeffentlichte Fassung wurde ersetzt"
+    assert hochgeladen == ["tools/gappa/1.4.0/gappa-1.4.0-win_amd64.zip"]
+
+
+def test_dieselben_bytes_werden_nicht_noch_einmal_geschrieben(monkeypatch, tmp_path):
+    """Die einzige Ausnahme, und sie ist eine Ersparnis, kein Schutz."""
+    import hashlib
+
+    datei = tmp_path / "gappa-1.4.0-win_amd64.zip"
+    datei.write_bytes(b"derselbe Bau")
+    etag = hashlib.md5(b"derselbe Bau").hexdigest()
+    hochgeladen = _ohne_netz(monkeypatch, liegt_da=True, etag=etag)
+    publish_r2.main(["--prefix", "tools/gappa/1.4.0", str(datei)])
+    assert hochgeladen == []
 
 
 def test_navigation_darf_sich_weiter_bewegen(monkeypatch, tmp_path):
@@ -92,28 +110,36 @@ def test_eine_neue_version_wird_ganz_normal_veroeffentlicht(monkeypatch, tmp_pat
     assert hochgeladen == ["tools/gappa/1.8.3/gappa-1.8.3-win_amd64.zip"]
 
 
-def test_abweichende_bytes_werden_genannt_nicht_verschwiegen(monkeypatch, tmp_path, capsys):
-    """Nicht ueberschreiben heisst nicht schweigen: die Drift gehoert ins Log."""
+def test_ersetzen_wird_genannt_nicht_verschwiegen(monkeypatch, tmp_path, capsys):
+    """Ersetzen ist erlaubt, aber nicht still: beide md5 gehoeren ins Log.
+
+    Sonst ist eine Adresse, die ihre Bytes gewechselt hat, hinterher von
+    einer, die es nicht tat, nicht mehr zu unterscheiden.
+    """
     datei = tmp_path / "gappa-1.4.0-win_amd64.zip"
     datei.write_bytes(b"neuer Bau")
     _ohne_netz(monkeypatch, liegt_da=True, etag="0" * 32)
     publish_r2.main(["--prefix", "tools/gappa/1.4.0", str(datei)])
     ausgabe = capsys.readouterr().out
-    assert "::warning::" in ausgabe and "andere Bytes" in ausgabe
+    assert "wird ERSETZT" in ausgabe
+    assert "0" * 32 in ausgabe
 
 
-def test_eine_unklare_antwort_ist_kein_freibrief(monkeypatch, tmp_path):
-    """HTTP 403 oder 500 heissen 'wir wissen es nicht'. Dann wird nicht
-    ueberschrieben, sondern angehalten - sonst entscheidet eine Stoerung
-    darueber, ob eine Zusage stehen bleibt."""
+def test_eine_unklare_antwort_haelt_die_auslieferung_nicht_auf(monkeypatch, tmp_path):
+    """HTTP 403 oder 500 heissen "wir wissen es nicht" - und im Zweifel gilt
+    seit dem 2026-09-23, was der Lauf gebaut hat.
+
+    Vorher hielt das hier an, damit keine Zusage ungefragt wanderte. Es hat
+    zweimal eine halbe Auslieferung hinterlassen: eine Stoerung beim LESEN
+    darf nicht darueber entscheiden, ob geschrieben wird.
+    """
     import urllib.error
 
     def kaputt(anfrage, **egal):
         raise urllib.error.HTTPError("x", 503, "kaputt", {}, None)
 
     monkeypatch.setattr(publish_r2.urllib.request, "urlopen", kaputt)
-    with pytest.raises(SystemExit, match="HTTP 503"):
-        publish_r2.liegt_schon_da("tools/gappa/1.4.0/x.zip")
+    assert publish_r2.liegt_schon_da("tools/gappa/1.4.0/x.zip") == (False, "")
 
 
 def test_die_existenzfrage_geht_am_cache_vorbei(monkeypatch):

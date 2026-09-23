@@ -81,3 +81,20 @@ def test_der_riegel_fragt_nicht_den_cache(werkzeug):
     quelle = (ROOT / "tools" / "windows" /
               "dasselbe_wie_draussen.py").read_text(encoding="utf-8")
     assert "nocache=" in quelle
+
+
+@pytest.mark.parametrize("werkzeug", WERKZEUGE)
+def test_der_cron_reicht_nicht_ein(werkzeug):
+    """Seit R2 unter tools/ ersetzt statt liegen zu lassen (2026-09-23),
+    wuerde der woechentliche Lauf sonst jeden Montag ein neues Paket in die
+    Moderation schieben und die Warteschlange zuruecksetzen.
+
+    Der Riegel darueber bleibt trotzdem stehen: er prueft die ZUSAGE, nicht
+    den Ausloeser. Ein Lauf von Hand, bei dem das Veroeffentlichen nach R2
+    aus irgendeinem Grund nicht durchkam, darf genauso wenig einreichen.
+    """
+    lauf = (ROOT / ".forgejo" / "workflows" /
+            f"{werkzeug}-windows.yml").read_text(encoding="utf-8")
+    schritt = lauf[lauf.index("- name: Nach Chocolatey"):]
+    bedingung = "if: ${{ github.event_name == 'workflow_dispatch' }}"
+    assert bedingung in schritt[:schritt.index("run: |")]
