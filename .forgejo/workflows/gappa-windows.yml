@@ -235,6 +235,21 @@ jobs:
         run: |
           $nupkg = Get-ChildItem dist\gappa-choco\*.nupkg | Select-Object -First 1
           if (-not $nupkg) { throw "kein Chocolatey-Paket in dist\gappa-choco" }
+          # ERST DIE ZUSAGE PRUEFEN, DANN EINREICHEN (gemessen 2026-09-21).
+          # VERIFICATION.txt im Paket schickt den Moderator auf das
+          # oeffentliche Zip. Liegt dort ein anderer Bau - und das ist nach
+          # jedem woechentlichen Lauf so, weil tools/ auf R2 unveraenderlich
+          # ist und gappa.exe nicht reproduzierbar -, dann ist diese
+          # Zusage falsch. Genau so ist zqel-gappa 1.4.0 am 21.09.
+          # still ersetzt und vom Moderator zurueckgestellt worden. Niemand
+          # hatte das entschieden; der Cron hat es getan.
+          python tools\windows\dasselbe_wie_draussen.py --werkzeug gappa --dist dist\gappa
+          $urteil = $LASTEXITCODE
+          if ($urteil -eq 2) { throw "dasselbe_wie_draussen: nicht feststellbar" }
+          if ($urteil -ne 0) {
+            Write-Host "  $($nupkg.Name) wurde GEBAUT, nicht eingereicht - siehe oben."
+            exit 0
+          }
           if (-not $env:CHOCO_API_KEY) {
             Write-Host "CHOCO_API_KEY ist nicht gesetzt - $($nupkg.Name) wurde GEBAUT, nicht eingereicht."
             Write-Host "Oeffentlich zu veroeffentlichen ist eine Entscheidung; sie faellt durch das Setzen des Schluessels."

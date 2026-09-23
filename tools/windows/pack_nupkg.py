@@ -158,8 +158,16 @@ VERIFICATION = """VERIFICATION
 Verification is intended to assist the Chocolatey moderators and the community
 in verifying that this package's contents are trustworthy.
 
-This package embeds {werkzeug}.exe, which we compiled ourselves from the source
-tarball that ships INSIDE this package:
+This package embeds {werkzeug}.exe:
+
+    sha256 of tools/{werkzeug}.exe in THIS package:
+    {exe_hash}
+
+Check it directly, without downloading anything:
+
+    Get-FileHash tools\\{werkzeug}.exe -Algorithm SHA256
+
+It was compiled by us from the source tarball that ships INSIDE this package:
 
     tools/source/{quellname}
     upstream: {quell_url}
@@ -263,10 +271,15 @@ def choco_nuspec(pin: dict, werkzeug: str) -> str:
     )
 
 
-def verification(pin: dict, werkzeug: str) -> str:
+def verification(pin: dict, werkzeug: str, exe: bytes) -> str:
     quellname, q = next(iter(pin["source"].items()))
     return VERIFICATION.format(
         werkzeug=werkzeug,
+        # Nachgefragt am 2026-09-21: der Moderator soll das Binary pruefen
+        # koennen, OHNE erst ein Zip von einem fremden Server zu holen. Der
+        # Hash kommt aus genau den Bytes, die gleich mit eingepackt werden -
+        # eine zweite Messung waere eine zweite Autoritaet.
+        exe_hash=hashlib.sha256(exe).hexdigest(),
         quellname=quellname,
         quell_url=q["url"],
         quell_hash=q["sha256"],
@@ -412,7 +425,8 @@ def packe(pin_pfad: pathlib.Path, stage: pathlib.Path, out: pathlib.Path,
         # ein Paket Binaerdateien mitbringt: woher sie stammen und unter
         # welcher Lizenz. Beides steht schon im Paket - hier noch einmal an
         # den Stellen, an denen Chocolatey es erwartet.
-        inhalt["tools/VERIFICATION.txt"] = verification(pin, werkzeug).encode("ascii", "replace")
+        inhalt["tools/VERIFICATION.txt"] = verification(
+            pin, werkzeug, inhalt[f"tools/{werkzeug}.exe"]).encode("ascii", "replace")
         lizenz = stage / "COPYING"
         if not lizenz.is_file():
             raise SystemExit(f"{lizenz} fehlt - ohne Lizenztext kein Paket")
