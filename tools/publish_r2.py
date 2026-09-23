@@ -23,20 +23,31 @@ EMPTY_SHA256 = hashlib.sha256(b"").hexdigest()
 #: HIER, nicht am S3-Endpunkt: es geht um das, was ein Fremder bekommt.
 OEFFENTLICH = "https://dl.zqel.org"
 
-#: Adressen, die eine ZUSAGE sind und deshalb nicht mehr wandern duerfen.
+#: EINE ADRESSE TRAEGT DEN LETZTEN BAU. Umgestellt am 2026-09-23.
 #:
-#: Unter tools/<werkzeug>/<version>/ liegt ein benanntes Artefakt einer
-#: benannten Version. Wer es zitiert, meint bestimmte Bytes. Gemessen am
-#: 2026-09-15: zwei Laeufe auf demselben Pin haben gappa-1.4.0-win_amd64.zip
-#: zweimal veroeffentlicht - mit verschiedenen Bytes, weil Zip und
-#: Inno-Installer Zeitstempel tragen. Dieselbe Adresse meinte an zwei Tagen
-#: zwei Dateien, und nichts wurde deswegen rot.
+#: Bis hierhin galt `tools/` als unveraenderlich: wer eine benannte Version
+#: zitiert, meine bestimmte Bytes, also blieb die erste Fassung liegen. Der
+#: Gedanke war richtig, die Wirkung nicht. Der Windows-Bau ist NICHT
+#: reproduzierbar (gemessen: gappa.exe, gleiche Groesse, dreimal
+#: verschiedener Hash), also weicht jeder Lauf ab, also blieb IMMER der alte
+#: Stand liegen - und das Chocolatey-Paket daneben war der neue. Genau diese
+#: Schere hat zqel-gappa 1.4.0 am 21.09. aus der Freigabe geworfen.
 #:
-#: NICHT hier stehen duerfen: flake/latest.json und die uebrigen
-#: Navigationsadressen - die MUESSEN sich bewegen; der Cache unter nix/, wo
-#: ein neu signiertes narinfo rechtmaessig ersetzt wird; und
-#: flake/<sha256>.tar.gz, das seinen Inhalt schon im Namen traegt.
-UNVERAENDERLICH = ("tools/",)
+#: Die Reibung sollte eine Entscheidung erzwingen. Sie hat stattdessen einen
+#: Handgriff erzwungen - vier Objekte von Hand loeschen, vor jedem Lauf -
+#: und ein vergessener Handgriff ist keine Entscheidung, sondern ein
+#: Ausfall. Zweimal passiert, beide Male teuer.
+#:
+#: Jetzt gilt eine Regel fuer alles: hochgeladen wird, was der Lauf gebaut
+#: hat, es sei denn, dort liegen schon genau dieselben Bytes. Ersetzen wird
+#: GEMELDET, nicht verschwiegen.
+#:
+#: Was an die Stelle der Zusage tritt: wer bestimmte Bytes meint, nennt
+#: ihren sha256, nicht ihre Adresse. Deshalb steht er seit dem 2026-09-23 in
+#: VERIFICATION.txt, in den .sha256-Beilagen und in den winget-Manifesten.
+#: Und damit eine Adresse sich nicht ungefragt bewegt, reicht der
+#: Chocolatey-Schritt nur noch bei einem Lauf von Hand ein - der Cron baut
+#: und misst, er veroeffentlicht nicht mehr nach draussen.
 
 
 def _sign(key: bytes, message: str) -> bytes:
@@ -117,13 +128,17 @@ def liegt_schon_da(key: str) -> tuple[bool, str]:
     except urllib.error.HTTPError as fehler:
         if fehler.code == 404:
             return False, ""
-        # Alles andere ist KEIN "gibt es nicht": eine 403 oder 500 hiesse,
-        # wir wissen es nicht - und dann darf nicht ueberschrieben werden.
-        raise SystemExit(f"{key}: HEAD antwortet HTTP {fehler.code}")
+        # Eine 403 oder 500 heisst "wir wissen es nicht". Bis zum
+        # 2026-09-23 hat das den Lauf angehalten, weil nicht ueberschrieben
+        # werden durfte. Jetzt gilt umgekehrt: im Zweifel gilt, was der Lauf
+        # gebaut hat - eine Stoerung beim LESEN darf die Auslieferung nicht
+        # aufhalten.
+        print(f"  {key}: HEAD antwortet HTTP {fehler.code} - wird geschrieben")
+        return False, ""
     except OSError as fehler:
-        raise SystemExit(
-            f"{key}: die oeffentliche Adresse ist nicht erreichbar "
-            f"({type(fehler).__name__}: {fehler})")
+        print(f"  {key}: Adresse nicht lesbar "
+              f"({type(fehler).__name__}: {fehler}) - wird geschrieben")
+        return False, ""
 
 
 def put(file: pathlib.Path, *, bucket: str, key: str, endpoint: str,
@@ -152,23 +167,22 @@ def put(file: pathlib.Path, *, bucket: str, key: str, endpoint: str,
     print(f"  {file.name:52s} {len(payload):9d} bytes  sha256 {payload_hash}")
 
 
-def _schon_veroeffentlicht(file: pathlib.Path, key: str) -> bool:
-    """Liegt unter dieser unveraenderlichen Adresse schon etwas?
+def _liegt_schon_genau_so_da(file: pathlib.Path, key: str) -> bool:
+    """Liegen dort schon GENAU diese Bytes? Nur dann wird nicht hochgeladen.
 
-    Dann bleibt es liegen. NICHT weil ein zweiter Bau nichts wert waere - der
-    woechentliche Lauf prueft, ob die Bauanleitung auf einer fortgeschriebenen
-    MSYS2-Toolchain noch traegt, und das ist sein Ertrag. Sondern weil das Zip
-    dieser Version schon jemand zitiert haben koennte.
+    Das ist eine Ersparnis, kein Schutz: derselbe Inhalt noch einmal zu
+    schreiben kostet nur Zeit. Alles andere - andere Bytes, unklares ETag,
+    Adresse nicht lesbar - fuehrt zum Upload. Im Zweifel gilt, was der Lauf
+    gebaut hat.
 
-    KEIN Abbruch, sondern eine Meldung: der Unterschied besteht heute aus
-    Zeitstempeln, nicht aus anderem Verhalten. Ein Lauf, der deswegen jeden
-    Montag rot waere, bringt man allen nur bei zu ignorieren - dieselbe
-    Begruendung, aus der der Upload in die Paketregistry eine 409 als
-    "unveraendert" verbucht hat. Abweichende Bytes werden trotzdem GENANNT,
-    als ::warning::, damit die Drift im Log steht.
-
-    Wer eine veroeffentlichte Adresse wirklich ersetzen muss, loescht sie
-    vorher von Hand. Das ist die Reibung, die es braucht.
+    WARUM DER ZWEIFEL JETZT FUER DAS ERSETZEN SPRICHT (2026-09-23):
+    Vorher hat er dagegen gesprochen, und das hat zweimal eine halbe
+    Auslieferung hinterlassen. Am 2026-09-17 galten vier geloeschte Objekte
+    als vorhanden, weil der Cloudflare-Cache sie noch kannte; zurueck blieben
+    zwei .sha256-Beilagen ohne ihre Dateien. Am 2026-09-21 blieb das Zip vom
+    17. liegen, waehrend das Chocolatey-Paket schon der neue Bau war.
+    Beide Male war "nicht anfassen" die vorsichtige Wahl und trotzdem die
+    falsche.
     """
     da, etag = liegt_schon_da(key)
     if not da:
@@ -176,14 +190,14 @@ def _schon_veroeffentlicht(file: pathlib.Path, key: str) -> bool:
     md5 = hashlib.md5(file.read_bytes()).hexdigest()
     if etag == md5:
         print(f"  {file.name:52s} unveraendert (schon veroeffentlicht)")
-    elif "-" in etag or not etag:
-        print(f"  {file.name:52s} liegt schon da (ETag nicht vergleichbar)")
-    else:
-        print(f"::warning::{key} liegt bereits mit anderen Bytes "
-              f"(veroeffentlicht md5 {etag}, hier md5 {md5}). Die "
-              f"veroeffentlichte Fassung bleibt - sie koennte zitiert sein.")
-        print(f"  {file.name:52s} NICHT ersetzt (andere Bytes)")
-    return True
+        return True
+    if "-" in etag or not etag:
+        print(f"  {file.name:52s} ETag nicht vergleichbar - wird ersetzt")
+        return False
+    # Laut, aber kein Abbruch: das ist der Normalfall eines zweiten Baus.
+    print(f"  {file.name:52s} wird ERSETZT (veroeffentlicht md5 {etag}, "
+          f"hier md5 {md5})")
+    return False
 
 
 def main(argv=None) -> int:
@@ -205,7 +219,7 @@ def main(argv=None) -> int:
         if not file.is_file():
             raise SystemExit(f"missing file: {file}")
         key = f"{args.prefix}/{file.name}"
-        if key.startswith(UNVERAENDERLICH) and _schon_veroeffentlicht(file, key):
+        if _liegt_schon_genau_so_da(file, key):
             continue
         put(file, bucket=args.bucket, key=key,
             endpoint=args.endpoint, key_id=key_id, secret=secret)
