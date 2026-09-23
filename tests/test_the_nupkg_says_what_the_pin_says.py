@@ -135,6 +135,15 @@ def test_das_choco_paket_traegt_was_die_moderation_verlangt(tmp_path):
     assert (f"<copyright>Copyright (c) {pin['upstream_publisher']}</copyright>"
             in spec)
 
+    # Der Hash des Binaries steht DRIN, nachgefragt am 2026-09-21: sonst
+    # muss ein Moderator erst ein Zip von einem fremden Server holen, um
+    # ueberhaupt etwas pruefen zu koennen.
+    import hashlib
+    with zipfile.ZipFile(nupkg) as z:
+        exe = z.read("tools/gappa.exe")
+    assert hashlib.sha256(exe).hexdigest() in pruef
+    assert "Get-FileHash tools\\gappa.exe" in pruef
+
     # Die Verifikation nennt NUR Adressen, die aus den Pins folgen - sonst
     # schickt sie einen Moderator an eine Stelle, an der nichts liegt.
     for adresse in pack_nupkg.oeffentliche_adressen("gappa"):
